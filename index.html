@@ -53,8 +53,7 @@
     <h1>Programma Laser 2026</h1>
     <p>Connessione in corso alla rete aziendale locale...</p>
     
-    <!-- 1. SOSTITUISCI L'INDIRIZZO SOTTO (http://10.x.x.x:8501) CON IL TUO "NETWORK URL" DI STREAMLIT -->
-    <a href="http://10.x.x.x:8501" class="btn" id="app-link">Accedi al Programma</a>
+    <a href="http://192.168.1.19:8501" class="btn" id="app-link">Accedi al Programma</a>
 
     <div class="footer-info">
         <p><strong>Nota per l'ufficio:</strong> Assicurati che il PC principale sia acceso con Streamlit avviato nel terminale. I dispositivi devono essere connessi alla stessa rete Wi-Fi/Ethernet aziendale o in VPN.</p>
@@ -62,13 +61,11 @@
 </div>
 
 <script>
-    // Configura qui il tuo Network URL di Streamlit (es. http://10.20.30.40:8501)
-    // Sostituisci l'indirizzo tra virgolette con quello che leggi sul tuo terminale
-    const networkUrl = "http://10.x.x.x:8501"; 
+    const networkUrl = "http://192.168.1.19:8501"; 
 
     document.getElementById('app-link').href = networkUrl;
     
-    // Prova a reindirizzare automaticamente all'istante
+    // Esegue il reindirizzamento automatico immediato
     window.location.href = networkUrl;
 </script>
 
