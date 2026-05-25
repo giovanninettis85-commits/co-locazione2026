@@ -20,8 +20,9 @@ def q(sql, p=()):
         c.commit()
         return cursor.fetchall()
 
+# Aggiornato il database per supportare la colonna delle note scritte a mano
 q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
-     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER)""")
+     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER, note TEXT)""")
 
 sat_info = {
     "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
@@ -53,12 +54,15 @@ def f_form(sys):
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
     
+    # MODIFICA: Aggiunto il campo di testo per l'inserimento manuale delle note da smartphone
+    nota = st.text_input("Note", value="", key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni qui...")
+    
     if f"saved_{sys}" not in st.session_state:
         st.session_state[f"saved_{sys}"] = False
         
     if st.button(f"💾 Salva in {sys}", key=f"b_{sys}", type="primary", width="stretch"):
         dt_c = datetime.combine(d, t).strftime("%Y-%m-%d %H:%M:%S")
-        q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np))
+        q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np, nota))
         st.session_state[f"saved_{sys}"] = True
         st.rerun()
         
@@ -70,8 +74,8 @@ with t_mslr: f_form("MSLR")
 with t_mlro: f_form("MLRO")
 with t_dati:
     st.subheader("📋 Gestione Registro ed Obiettivi")
-    raw = q("SELECT id, sistema, orbita, satellite, sic_code, data_ora, rms, normal_point FROM acquisitions ORDER BY id DESC")
-    df = pd.DataFrame(raw, columns=["id", "sistema", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point"]) if raw else pd.DataFrame()
+    raw = q("SELECT id, sistema, orbita, satellite, sic_code, data_ora, rms, normal_point, note FROM acquisitions ORDER BY id DESC")
+    df = pd.DataFrame(raw, columns=["id", "sistema", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]) if raw else pd.DataFrame()
     valid, c_leo, c_meo, c_heo = [], 0, 0, 0
     
     if not df.empty:
@@ -86,8 +90,6 @@ with t_dati:
                     u_mlro.add(r_mo["id"])
                     
                     fr2_name = f"9991_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
-                    
-                    # CORREZIONE: Aggiunto il prefisso fisso stazionale 9991_ e formattato l'orario anche per MSLR
                     fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
                     
                     valid.append({
@@ -102,7 +104,8 @@ with t_dati:
                         "N_MS": r_ms["normal_point"], 
                         "T_MLRO": r_mo["data_ora"], 
                         "R_MO": round(r_mo["rms"], 1), 
-                        "N_MO": r_mo["normal_point"]
+                        "N_MO": r_mo["normal_point"],
+                        "Note_MLRO": r_mo["note"] if r_mo["note"] else ""
                     })
                     break
         df_v = pd.DataFrame(valid) if valid else pd.DataFrame()
@@ -119,7 +122,7 @@ with t_dati:
     if not df.empty:
         st.markdown("### 🌟 Tabella Sincronizzata")
         if not df_v.empty:
-            st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO"]], width="stretch", hide_index=True)
+            st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_MLRO"]], width="stretch", hide_index=True)
         else: st.warning("⚠️ Nessun passaggio accoppiato entro i 5 minuti.")
         with st.expander("🗑️ Elimina record"):
             opt = {r["id"]: f"ID {r['id']} - {r['satellite']} ({r['sistema']}) del {r['data_ora']}" for _, r in df.iterrows()}
@@ -141,13 +144,14 @@ with t_dati:
             ws.append([])
             c_idx = 2
             for s in s_lst:
-                ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+8)
+                # Allargato a 10 colonne totali (1 Data + 4 MSLR + 5 MLRO)
+                ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+9)
                 
                 display_name = "galileo-xxx" if s == "Galileo-Bridge" else s.lower().replace(" ", "")
                 cell_s = ws.cell(row=2, column=c_idx, value=display_name)
                 cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
                 
-                ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+8)
+                ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+9)
                 orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
                 sic_label = "71xx" if s == "Galileo-Bridge" else sat_info[orb_k].get(s, "0000")
                 ws.cell(row=3, column=c_idx, value=sic_label).font = f_dt
@@ -160,12 +164,13 @@ with t_dati:
                 cell_ms = ws.cell(row=4, column=c_idx+1, value="MSLR")
                 cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
                 
-                ws.merge_cells(start_row=4, start_column=c_idx+5, end_row=4, end_column=c_idx+8)
+                # MLRO allargata a 5 colonne per fare spazio alle Note
+                ws.merge_cells(start_row=4, start_column=c_idx+5, end_row=4, end_column=c_idx+9)
                 cell_ml = ws.cell(row=4, column=c_idx+5, value="MLRO")
                 cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
                 
                 for r_h in range(2, 5):
-                    for c_h in range(c_idx, c_idx+9): ws.cell(row=r_h, column=c_h).border = brd
+                    for c_h in range(c_idx, c_idx+10): ws.cell(row=r_h, column=c_h).border = brd
                 
                 ws.cell(row=5, column=c_idx, value="").font = f_hd
                 ws.cell(row=5, column=c_idx).fill = f_grigio; ws.cell(row=5, column=c_idx).border = brd
@@ -176,18 +181,23 @@ with t_dati:
                     
                     cell_p2 = ws.cell(row=5, column=c_idx + 5 + p_idx, value=p_tx)
                     cell_p2.font = f_hd; cell_p2.alignment = al_c; cell_p2.fill = f_grigio; cell_p2.border = brd
-                c_idx += 9
+                
+                # Sotto-intestazione della colonna Note alla riga 5
+                cell_n_title = ws.cell(row=5, column=c_idx + 9, value="Note")
+                cell_n_title.font = f_hd; cell_n_title.alignment = al_c; cell_n_title.fill = f_grigio; cell_n_title.border = brd
+                
+                c_idx += 10
             
             r_dest = 6
             if not df_v.empty:
-                for row in df_v.to_dict(orient="records"):
+                for row in df_v[df_v["Satellite"].isin(s_lst) if f_nm != "High" else df_v["Data"].notna()].to_dict(orient="records"):
                     is_galileo = row["Satellite"].startswith("Galileo-")
                     if f_nm == "High" and not is_galileo and row["Satellite"] not in s_lst: continue
                     if f_nm == "High" and is_galileo and "Galileo-Bridge" not in s_lst: continue
                     if f_nm != "High" and row["Satellite"] not in s_lst: continue
                     
                     s_pos = s_lst.index("Galileo-Bridge") if is_galileo and f_nm == "High" else s_lst.index(row["Satellite"])
-                    b_col = 2 + (s_pos * 9)
+                    b_col = 2 + (s_pos * 10)
                     dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
                     dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
                     
@@ -203,28 +213,18 @@ with t_dati:
                     for o_idx, val in enumerate([t_ml, row["R_MO"], row["N_MO"], row["fr2"]]):
                         cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                         cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
-                    for c_b in range(2, 29):
+                        
+                    # Scrittura del testo delle Note a destra del file .fr2 di MLRO
+                    cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_MLRO"])
+                    cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
+                    
+                    for c_b in range(2, 32):
                         ws.cell(row=r_dest, column=c_b).border = brd
                     r_dest += 1
             
             for r_empty in range(r_dest, 31):
-                for c_b in range(2, 29):
+                for c_b in range(2, 32):
                     ws.cell(row=r_empty, column=c_b).border = brd
                     
-            for col in range(1, 29):
+            for col in range(1, 32):
                 col_letter = get_column_letter(col)
-                max_len = max(len(str(ws.cell(row=row, column=col).value or '')) for row in range(1, 31))
-                ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
-        wb.save(buf)
-        st.write("")
-        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
-        st.write("---")
-        
-        df_mslr_raw = df[df["sistema"] == "MSLR"]
-        st.markdown("### 🔴 Dati MSLR")
-        if not df_mslr_raw.empty: st.dataframe(df_mslr_raw, width="stretch", hide_index=True)
-        
-        df_mlro_raw = df[df["sistema"] == "MLRO"]
-        st.markdown("### 🔵 Dati MLRO")
-        if not df_mlro_raw.empty: st.dataframe(df_mlro_raw, width="stretch", hide_index=True)
-    else: st.info("Nessun dato ancora registrato.")
