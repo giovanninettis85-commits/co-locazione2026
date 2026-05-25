@@ -102,78 +102,82 @@ with t_dati:
             if st.button("🚨 Nel Registro Elimina Riga", width="stretch"):
                 q("DELETE FROM acquisitions WHERE id = ?", (sel,)); st.rerun()
                 
-        if st.button("📊 Esporta Report in Excel", width="stretch"):
-            wb = openpyxl.Workbook()
-            wb.remove(wb.active)
-            f_cfg = {"Low": ["Starlette", "Stella", "Lares"], "Meo": ["Lageos 1", "Lageos 2", "Lares 2"], "High": ["Etalon 1", "Etalon 2", "Galileo-101"]}
-            f_hd, f_dt, f_vrd = Font(name="Calibri", size=10, bold=True), Font(name="Calibri", size=10), PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
-            f_grigio = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-            brd, al_c = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin')), Alignment(horizontal="center", vertical="center")
+        st.subheader("📊 Esporta ed Esporta Report")
+        
+        # --- LOGICA DI GENERAZIONE IN MEMORIA (BYTESIO) ---
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        f_cfg = {"Low": ["Starlette", "Stella", "Lares"], "Meo": ["Lageos 1", "Lageos 2", "Lares 2"], "High": ["Etalon 1", "Etalon 2", "Galileo-101"]}
+        f_hd, f_dt, f_vrd = Font(name="Calibri", size=10, bold=True), Font(name="Calibri", size=10), PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
+        f_grigio = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+        brd, al_c = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin')), Alignment(horizontal="center", vertical="center")
+        
+        for f_nm, s_lst in f_cfg.items():
+            ws = wb.create_sheet(title=f_nm)
+            ws.sheet_view.showGridLines = True
+            ws.append([])
+            c_idx = 2
+            orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
             
-            for f_nm, s_lst in f_cfg.items():
-                ws = wb.create_sheet(title=f_nm)
-                ws.sheet_view.showGridLines = True
-                ws.append([])
-                c_idx = 2
-                orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
+            for s in s_lst:
+                ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+7)
+                cell_s = ws.cell(row=2, column=c_idx, value=s.lower().replace(" ", ""))
+                cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
                 
-                for s in s_lst:
-                    ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+7)
-                    cell_s = ws.cell(row=2, column=c_idx, value=s.lower().replace(" ", ""))
-                    cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
-                    
-                    ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+7)
-                    ws.cell(row=3, column=c_idx, value=sat_info[orb_k].get(s, "7103")).font = f_dt
-                    ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
-                    
-                    ws.merge_cells(start_row=4, start_column=c_idx, end_row=4, end_column=c_idx+3)
-                    cell_ms = ws.cell(row=4, column=c_idx, value="MSLR")
-                    cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
-                    
-                    ws.merge_cells(start_row=4, start_column=c_idx+4, end_row=4, end_column=c_idx+7)
-                    cell_ml = ws.cell(row=4, column=c_idx+4, value="MLRO")
-                    cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
-                    
-                    for r_h in range(2, 5):
-                        for c_h in range(c_idx, c_idx+8): ws.cell(row=r_h, column=c_h).border = brd
-                    
-                    # --- LOGICA CORRETTA E SEMPLIFICATA SENZA CICLO VUOTO ---
-                    for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", ""]):
-                        # Intestazioni blocco MSLR (offset 0)
-                        c_p1 = ws.cell(row=5, column=c_idx + 0 + p_idx, value=p_tx)
-                        c_p1.font = f_hd; c_p1.alignment = al_c; c_p1.fill = f_grigio; c_p1.border = brd
-                        # Intestazioni blocco MLRO (offset 4)
-                        c_p2 = ws.cell(row=5, column=c_idx + 4 + p_idx, value=p_tx)
-                        c_p2.font = f_hd; c_p2.alignment = al_c; c_p2.fill = f_grigio; c_p2.border = brd
-                    c_idx += 8
+                ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+7)
+                ws.cell(row=3, column=c_idx, value=sat_info[orb_k].get(s, "7103")).font = f_dt
+                ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
                 
-                r_dest = 6
-                if not df_v.empty:
-                    for row_v in df_v[df_v["Orbita"] == orb_k].to_dict(orient="records"):
-                        if row_v["Satellite"] in s_lst:
-                            s_pos = s_lst.index(row_v["Satellite"])
-                            b_col = 2 + (s_pos * 8)
-                            
-                            d_obj_ms = datetime.strptime(row_v["T_MSLR"], "%Y-%m-%d %H:%M:%S")
-                            t_ms = f"{d_obj_ms.strftime('%H:%M:%S')}.0"
-                            ws.cell(row=r_dest, column=b_col, value=t_ms).alignment = al_c
-                            ws.cell(row=r_dest, column=b_col+1, value=row_v["R_MS"]).alignment = al_c
-                            ws.cell(row=r_dest, column=b_col+2, value=row_v["N_MS"]).alignment = al_c
-                            
-                            d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
-                            t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
-                            ws.cell(row=r_dest, column=b_col+4, value=t_mo).alignment = al_c
-                            ws.cell(row=r_dest, column=b_col+5, value=row_v["R_MO"]).alignment = al_c
-                            ws.cell(row=r_dest, column=b_col+6, value=row_v["N_MO"]).alignment = al_c
-                            
-                            for c_h in range(b_col, b_col+8): ws.cell(row=r_dest, column=c_h).border = brd
-                            r_dest += 1
+                ws.merge_cells(start_row=4, start_column=c_idx, end_row=4, end_column=c_idx+3)
+                cell_ms = ws.cell(row=4, column=c_idx, value="MSLR")
+                cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
+                
+                ws.merge_cells(start_row=4, start_column=c_idx+4, end_row=4, end_column=c_idx+7)
+                cell_ml = ws.cell(row=4, column=c_idx+4, value="MLRO")
+                cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
+                
+                for r_h in range(2, 5):
+                    for c_h in range(c_idx, c_idx+8): ws.cell(row=r_h, column=c_h).border = brd
+                
+                for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", ""]):
+                    c_p1 = ws.cell(row=5, column=c_idx + 0 + p_idx, value=p_tx)
+                    c_p1.font = f_hd; c_p1.alignment = al_c; c_p1.fill = f_grigio; c_p1.border = brd
+                    c_p2 = ws.cell(row=5, column=c_idx + 4 + p_idx, value=p_tx)
+                    c_p2.font = f_hd; c_p2.alignment = al_c; c_p2.fill = f_grigio; c_p2.border = brd
+                c_idx += 8
             
-            p_od = r"C:\Users\mlro_posta\OneDrive - ASI\Desktop\Laser Ranging\Laser_Ranging_Tracking.xlsx"
-            p_dk = r"C:\Users\mlro_posta\Desktop\Laser Ranging\Laser_Ranging_Tracking.xlsx"
-            try:
-                os.makedirs(os.path.dirname(p_od), exist_ok=True); wb.save(p_od)
-                os.makedirs(os.path.dirname(p_dk), exist_ok=True); wb.save(p_dk)
-                st.success("Excel salvato correttamente su OneDrive e Desktop!")
-            except Exception as e:
-                st.error(f"Errore durante il salvataggio dei file: {e}")
+            r_dest = 6
+            if not df_v.empty:
+                for row_v in df_v[df_v["Orbita"] == orb_k].to_dict(orient="records"):
+                    if row_v["Satellite"] in s_lst:
+                        s_pos = s_lst.index(row_v["Satellite"])
+                        b_col = 2 + (s_pos * 8)
+                        
+                        d_obj_ms = datetime.strptime(row_v["T_MSLR"], "%Y-%m-%d %H:%M:%S")
+                        t_ms = f"{d_obj_ms.strftime('%H:%M:%S')}.0"
+                        ws.cell(row=r_dest, column=b_col, value=t_ms).alignment = al_c
+                        ws.cell(row=r_dest, column=b_col+1, value=row_v["R_MS"]).alignment = al_c
+                        ws.cell(row=r_dest, column=b_col+2, value=row_v["N_MS"]).alignment = al_c
+                        
+                        d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
+                        t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
+                        ws.cell(row=r_dest, column=b_col+4, value=t_mo).alignment = al_c
+                        ws.cell(row=r_dest, column=b_col+5, value=row_v["R_MO"]).alignment = al_c
+                        ws.cell(row=r_dest, column=b_col+6, value=row_v["N_MO"]).alignment = al_c
+                        
+                        for c_h in range(b_col, b_col+8): ws.cell(row=r_dest, column=c_h).border = brd
+                        r_dest += 1
+        
+        # Salvataggio nel buffer virtuale
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        
+        # --- PULSANTE DI SCARICAMENTO DIRETTO (CARTELLA DOWNLOAD) ---
+        st.download_button(
+            label="📥 Scarica Report Excel (.xlsx)",
+            data=buf,
+            file_name="Laser_Ranging_Tracking.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            width="stretch"
+        )
