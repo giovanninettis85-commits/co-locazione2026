@@ -49,10 +49,7 @@ def f_form(sys):
     dt = datetime.now(timezone.utc)
     c1, c2 = st.columns(2)
     with c1: d = st.date_input("Data (UTC)", value=dt.date(), key=f"d_{sys}")
-    
-    # MODIFICA: Inserito step=60 per sbloccare la selezione dell'orario minuto per minuto
     with c2: t = st.time_input("Ora (UTC)", value=dt.time().replace(second=0, microsecond=0), step=60, key=f"t_{sys}")
-    
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
     
@@ -89,7 +86,9 @@ with t_dati:
                     u_mlro.add(r_mo["id"])
                     
                     fr2_name = f"9991_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
-                    fr2_ms_old = f"{dt_ms.strftime('%Y%m%d_%H%M')}_{r_ms['satellite'].lower().replace(' ','')}_{r_ms['sic_code']}.fr2"
+                    
+                    # CORREZIONE: Aggiunto il prefisso fisso stazionale 9991_ e formattato l'orario anche per MSLR
+                    fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
                     
                     valid.append({
                         "Data": dt_ms.strftime("%Y-%m-%d"),
