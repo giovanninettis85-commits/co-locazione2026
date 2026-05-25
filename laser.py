@@ -23,7 +23,6 @@ def q(sql, p=()):
 q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
      sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER)""")
 
-# Menu corretto contenente SOLO i Galileo presenti nella lista delle priorità ILRS
 sat_info = {
     "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
     "Media (MEO)": {"Lageos 1": "1155", "Lageos 2": "5986", "Lares 2": "5988"},
@@ -53,10 +52,21 @@ def f_form(sys):
     with c2: t = st.time_input("Ora (UTC)", value=dt.time().replace(second=0, microsecond=0), key=f"t_{sys}")
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
+    
+    # Inizializza lo stato per mostrare il messaggio "Salvato"
+    if f"saved_{sys}" not in st.session_state:
+        st.session_state[f"saved_{sys}"] = False
+        
     if st.button(f"💾 Salva in {sys}", key=f"b_{sys}", type="primary", width="stretch"):
         dt_c = datetime.combine(d, t).strftime("%Y-%m-%d %H:%M:%S")
         q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np))
+        st.session_state[f"saved_{sys}"] = True
         st.rerun()
+        
+    # Mostra la scritta "Salvato" sotto il bottone rosso
+    if st.session_state[f"saved_{sys}"]:
+        st.success("Salvato")
+        st.session_state[f"saved_{sys}"] = False
 
 with t_mslr: f_form("MSLR")
 with t_mlro: f_form("MLRO")
