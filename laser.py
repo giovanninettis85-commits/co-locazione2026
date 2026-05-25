@@ -57,7 +57,6 @@ with t_dati:
     valid, c_leo, c_meo, c_heo = [], 0, 0, 0
     
     if not df.empty:
-        df["fr2"] = df.apply(lambda r: f"9991_{r['satellite'].lower().replace(' ','')}_crd_{datetime.strptime(r['data_ora'], '%Y-%m-%d %H:%M:%S').strftime('%Y%m%d_%H%M')}_00.fr2", axis=1)
         mslr, mlro = df[df["sistema"] == "MSLR"], df[df["sistema"] == "MLRO"]
         u_mlro = set()
         for _, r_ms in mslr.iterrows():
@@ -67,7 +66,24 @@ with t_dati:
                 dt_mo = datetime.strptime(r_mo["data_ora"], "%Y-%m-%d %H:%M:%S")
                 if abs(dt_ms - dt_mo) <= timedelta(minutes=5):
                     u_mlro.add(r_mo["id"])
-                    valid.append({"fr2": r_ms["fr2"], "Satellite": r_ms["satellite"], "SIC": r_ms["sic_code"], "Orbita": r_ms["orbita"], "T_MSLR": r_ms["data_ora"], "R_MS": round(r_ms["rms"], 1), "N_MS": r_ms["normal_point"], "T_MLRO": r_mo["data_ora"], "R_MO": round(r_mo["rms"], 1), "N_MO": r_mo["normal_point"]})
+                    
+                    # Generazione del file prendendo correttamente la data_ora del record MLRO
+                    fr2_name = f"9991_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
+                    fr2_ms_old = f"{dt_ms.strftime('%Y%m%d_%H%M')}_{r_ms['satellite'].lower().replace(' ','')}_{r_ms['sic_code']}.fr2"
+                    
+                    valid.append({
+                        "fr2": fr2_name, 
+                        "fr2_ms_old": fr2_ms_old,
+                        "Satellite": r_ms["satellite"], 
+                        "SIC": r_ms["sic_code"], 
+                        "Orbita": r_ms["orbita"], 
+                        "T_MSLR": r_ms["data_ora"], 
+                        "R_MS": round(r_ms["rms"], 1), 
+                        "N_MS": r_ms["normal_point"], 
+                        "T_MLRO": r_mo["data_ora"], 
+                        "R_MO": round(r_mo["rms"], 1), 
+                        "N_MO": r_mo["normal_point"]
+                    })
                     break
         df_v = pd.DataFrame(valid) if valid else pd.DataFrame()
         if not df_v.empty:
@@ -83,7 +99,7 @@ with t_dati:
     if not df.empty:
         st.markdown("### 🌟 Tabella Sincronizzata")
         if not df_v.empty:
-            st.dataframe(df_v, width="stretch", hide_index=True)
+            st.dataframe(df_v[["fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO"]], width="stretch", hide_index=True)
         else: st.warning("⚠️ Nessun passaggio accoppiato entro i 5 minuti.")
         with st.expander("🗑️ Elimina record"):
             opt = {r["id"]: f"ID {r['id']} - {r['satellite']} ({r['sistema']}) del {r['data_ora']}" for _, r in df.iterrows()}
@@ -135,12 +151,13 @@ with t_dati:
                 for row in df_v[df_v["Satellite"].isin(s_lst)].to_dict(orient="records"):
                     s_pos = s_lst.index(row["Satellite"])
                     b_col = 2 + (s_pos * 8)
-                    d_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
+                    dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
+                    dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
                     
-                    t_ms = f"{datetime.strptime(row['T_MSLR'], '%Y-%m-%d %H:%M:%S').hour}.{datetime.strptime(row['T_MSLR'], '%Y-%m-%d %H:%M:%S').strftime('%M')}"
-                    t_ml = f"{d_obj.hour}.{d_obj.strftime('%M')}"
+                    t_ms = f"{dt_ms_obj.hour}.{dt_ms_obj.strftime('%M')}"
+                    t_ml = f"{dt_mo_obj.hour}.{dt_mo_obj.strftime('%M')}"
                     
-                    for o_idx, val in enumerate([t_ms, row["R_MS"], row["N_MS"], ""]):
+                    for o_idx, val in enumerate([t_ms, row["R_MS"], row["N_MS"], row["fr2_ms_old"]]):
                         cell = ws.cell(row=r_dest, column=b_col + o_idx, value=val)
                         cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                     for o_idx, val in enumerate([t_ml, row["R_MO"], row["N_MO"], row["fr2"]]):
