@@ -58,7 +58,11 @@ def f_form(sys):
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
     
-    nota = st.text_input("Note", value="", key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni qui...")
+    # Inizializza la memoria di testo per svuotare la casella dopo il click
+    if f"input_note_{sys}" not in st.session_state:
+        st.session_state[f"input_note_{sys}"] = ""
+        
+    nota = st.text_input("Note", value=st.session_state[f"input_note_{sys}"], key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni qui...")
     
     if f"saved_{sys}" not in st.session_state:
         st.session_state[f"saved_{sys}"] = False
@@ -67,6 +71,8 @@ def f_form(sys):
         dt_c = datetime.combine(d, t).strftime("%Y-%m-%d %H:%M:%S")
         q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np, nota))
         st.session_state[f"saved_{sys}"] = True
+        # TRUCCO PULIZIA AUTOMATICA: Resetta a vuoto la variabile dello stato
+        st.session_state[f"input_note_{sys}"] = ""
         st.rerun()
         
     if st.session_state[f"saved_{sys}"]:
@@ -95,7 +101,16 @@ with t_dati:
                     fr2_name = f"9991_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
                     fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
                     
-                    # CORREZIONE: Cambiata la chiave in r_mo["note"] in minuscolo per estrarre sempre il testo a schermo
+                    # LOGICA DI UNIONE DELLE NOTE: Combina intelligentemente le note inserite in MSLR e MLRO
+                    n_ms = r_ms["note"] if r_ms["note"] else ""
+                    n_mo = r_mo["note"] if r_mo["note"] else ""
+                    if n_ms and n_mo:
+                        nota_unita = f"{n_ms} | {n_mo}"
+                    elif n_ms:
+                        nota_unita = n_ms
+                    else:
+                        nota_unita = n_mo
+                    
                     valid.append({
                         "Data": dt_ms.strftime("%Y-%m-%d"),
                         "fr2": fr2_name, 
@@ -109,7 +124,7 @@ with t_dati:
                         "T_MLRO": r_mo["data_ora"], 
                         "R_MO": round(r_mo["rms"], 1), 
                         "N_MO": r_mo["normal_point"],
-                        "Note_MLRO": r_mo["note"] if r_mo["note"] else ""
+                        "Note_Accoppiate": nota_unita
                     })
                     break
         df_v = pd.DataFrame(valid) if valid else pd.DataFrame()
@@ -126,7 +141,7 @@ with t_dati:
     if not df.empty:
         st.markdown("### 🌟 Tabella Sincronizzata")
         if not df_v.empty:
-            st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_MLRO"]], width="stretch", hide_index=True)
+            st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
         else: st.warning("⚠️ Nessun passaggio accoppiato entro i 5 minuti.")
         with st.expander("🗑️ Elimina record"):
             opt = {r["id"]: f"ID {r['id']} - {r['satellite']} ({r['sistema']}) del {r['data_ora']}" for _, r in df.iterrows()}
@@ -215,7 +230,8 @@ with t_dati:
                         cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                         cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
-                    cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_MLRO"])
+                    # Scrive l'unione corretta delle note nel foglio Excel
+                    cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_Accoppiate"])
                     cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
                     
                     for c_b in range(2, 32):
@@ -225,10 +241,3 @@ with t_dati:
             for r_empty in range(r_dest, 31):
                 for c_b in range(2, 32):
                     ws.cell(row=r_empty, column=c_b).border = brd
-                    
-            for col in range(1, 32):
-                col_letter = get_column_letter(col)
-                max_len = max(len(str(ws.cell(row=row, column=col).value or '')) for row in range(1, 31))
-                ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
-        wb.save(buf)
-        st.write("")
