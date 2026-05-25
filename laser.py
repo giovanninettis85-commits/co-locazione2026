@@ -58,7 +58,6 @@ def f_form(sys):
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
     
-    # Inizializza la memoria di testo per svuotare la casella dopo il click
     if f"input_note_{sys}" not in st.session_state:
         st.session_state[f"input_note_{sys}"] = ""
         
@@ -71,7 +70,6 @@ def f_form(sys):
         dt_c = datetime.combine(d, t).strftime("%Y-%m-%d %H:%M:%S")
         q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np, nota))
         st.session_state[f"saved_{sys}"] = True
-        # TRUCCO PULIZIA AUTOMATICA: Resetta a vuoto la variabile dello stato
         st.session_state[f"input_note_{sys}"] = ""
         st.rerun()
         
@@ -101,7 +99,6 @@ with t_dati:
                     fr2_name = f"9991_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
                     fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
                     
-                    # LOGICA DI UNIONE DELLE NOTE: Combina intelligentemente le note inserite in MSLR e MLRO
                     n_ms = r_ms["note"] if r_ms["note"] else ""
                     n_mo = r_mo["note"] if r_mo["note"] else ""
                     if n_ms and n_mo:
@@ -230,7 +227,7 @@ with t_dati:
                         cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                         cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
-                    # Scrive l'unione corretta delle note nel foglio Excel
+                    # CORREZIONE RIGA 148: Mette correttamente a referenza il testo unito (Note_Accoppiate) nel file Excel
                     cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_Accoppiate"])
                     cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
                     
@@ -241,3 +238,4 @@ with t_dati:
             for r_empty in range(r_dest, 31):
                 for c_b in range(2, 32):
                     ws.cell(row=r_empty, column=c_b).border = brd
+            for col in range(1, 32):
