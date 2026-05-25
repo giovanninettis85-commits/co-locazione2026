@@ -115,13 +115,14 @@ with t_dati:
                 ws.sheet_view.showGridLines = True
                 ws.append([])
                 c_idx = 2
+                orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
+                
                 for s in s_lst:
                     ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+7)
                     cell_s = ws.cell(row=2, column=c_idx, value=s.lower().replace(" ", ""))
                     cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
                     
                     ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+7)
-                    orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
                     ws.cell(row=3, column=c_idx, value=sat_info[orb_k].get(s, "7103")).font = f_dt
                     ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
                     
