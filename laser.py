@@ -136,10 +136,15 @@ with t_dati:
                     
                     for r_h in range(2, 5):
                         for c_h in range(c_idx, c_idx+8): ws.cell(row=r_h, column=c_h).border = brd
+                    
+                    # --- LOGICA CORRETTA E SEMPLIFICATA SENZA CICLO VUOTO ---
                     for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", ""]):
-                        for offset in [0, 4]:
-                            cell_p = ws.cell(row=5, column=c_idx + offset + p_idx, value=p_tx)
-                            cell_p.font = f_hd; cell_p.alignment = al_c; cell_p.fill = f_grigio; cell_p.border = brd
+                        # Intestazioni blocco MSLR (offset 0)
+                        c_p1 = ws.cell(row=5, column=c_idx + 0 + p_idx, value=p_tx)
+                        c_p1.font = f_hd; c_p1.alignment = al_c; c_p1.fill = f_grigio; c_p1.border = brd
+                        # Intestazioni blocco MLRO (offset 4)
+                        c_p2 = ws.cell(row=5, column=c_idx + 4 + p_idx, value=p_tx)
+                        c_p2.font = f_hd; c_p2.alignment = al_c; c_p2.fill = f_grigio; c_p2.border = brd
                     c_idx += 8
                 
                 r_dest = 6
