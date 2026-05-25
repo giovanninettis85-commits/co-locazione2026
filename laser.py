@@ -23,10 +23,20 @@ def q(sql, p=()):
 q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
      sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER)""")
 
+# Menu corretto contenente SOLO i Galileo presenti nella lista delle priorità ILRS
 sat_info = {
     "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
     "Media (MEO)": {"Lageos 1": "1155", "Lageos 2": "5986", "Lares 2": "5988"},
-    "Alta (HEO/GEO)": {"Etalon 1": "0525", "Etalon 2": "4146", "Galileo-101": "7101"}
+    "Alta (HEO/GEO)": {
+        "Etalon 1": "0525", 
+        "Etalon 2": "4146",
+        "Galileo-101": "7101", 
+        "Galileo-102": "7102", 
+        "Galileo-201": "7201", 
+        "Galileo-202": "7202", 
+        "Galileo-209": "7209", 
+        "Galileo-211": "7211"
+    }
 }
 
 st.title("🛰️ Laser Ranging Data Sync")
@@ -110,7 +120,7 @@ with t_dati:
         buf = io.BytesIO()
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
-        f_cfg = {"Low": ["Starlette", "Stella", "Lares"], "Meo": ["Lageos 1", "Lageos 2", "Lares 2"], "High": ["Etalon 1", "Etalon 2", "Galileo-101"]}
+        f_cfg = {"Low": ["Starlette", "Stella", "Lares"], "Meo": ["Lageos 1", "Lageos 2", "Lares 2"], "High": ["Etalon 1", "Etalon 2", "Galileo-Bridge"]}
         f_hd, f_dt, f_vrd = Font(name="Calibri", size=10, bold=True), Font(name="Calibri", size=10), PatternFill(start_color="92D050", end_color="92D050", fill_type="solid")
         f_grigio = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
         brd, al_c = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin')), Alignment(horizontal="center", vertical="center")
@@ -123,14 +133,14 @@ with t_dati:
             for s in s_lst:
                 ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+8)
                 
-                # Sostituisce la stringa dell'intestazione solo per Galileo-101 nel foglio Excel
-                display_name = "galileo-xxx" if s == "Galileo-101" else s.lower().replace(" ", "")
+                display_name = "galileo-xxx" if s == "Galileo-Bridge" else s.lower().replace(" ", "")
                 cell_s = ws.cell(row=2, column=c_idx, value=display_name)
                 cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
                 
                 ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+8)
                 orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
-                ws.cell(row=3, column=c_idx, value=sat_info[orb_k].get(s, "7103")).font = f_dt
+                sic_label = "71xx" if s == "Galileo-Bridge" else sat_info[orb_k].get(s, "0000")
+                ws.cell(row=3, column=c_idx, value=sic_label).font = f_dt
                 ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
                 
                 cell_d_title = ws.cell(row=4, column=c_idx, value="Data")
@@ -160,8 +170,13 @@ with t_dati:
             
             r_dest = 6
             if not df_v.empty:
-                for row in df_v[df_v["Satellite"].isin(s_lst)].to_dict(orient="records"):
-                    s_pos = s_lst.index(row["Satellite"])
+                for row in df_v.to_dict(orient="records"):
+                    is_galileo = row["Satellite"].startswith("Galileo-")
+                    if f_nm == "High" and not is_galileo and row["Satellite"] not in s_lst: continue
+                    if f_nm == "High" and is_galileo and "Galileo-Bridge" not in s_lst: continue
+                    if f_nm != "High" and row["Satellite"] not in s_lst: continue
+                    
+                    s_pos = s_lst.index("Galileo-Bridge") if is_galileo and f_nm == "High" else s_lst.index(row["Satellite"])
                     b_col = 2 + (s_pos * 9)
                     dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
                     dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
