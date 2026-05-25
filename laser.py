@@ -43,21 +43,10 @@ def f_form(sys):
     with c2: t = st.time_input("Ora (UTC)", value=dt.time().replace(second=0, microsecond=0), key=f"t_{sys}")
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
-    
     if st.button(f"💾 Salva in {sys}", key=f"b_{sys}", type="primary", width="stretch"):
         dt_c = datetime.combine(d, t).strftime("%Y-%m-%d %H:%M:%S")
         q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np))
-        st.success(f"✅ Satellite {sat_name} salvato con successo!")
         st.rerun()
-        
-    st.write("---")
-    st.markdown(f"### 📋 Ultimi inserimenti {sys}")
-    raw_sys = q("SELECT data_ora, satellite, sic_code, rms, normal_point FROM acquisitions WHERE sistema = ? ORDER BY id DESC LIMIT 5", (sys,))
-    if raw_sys:
-        df_sys = pd.DataFrame(raw_sys, columns=["Data/Ora UTC", "Satellite", "Codice SIC", "RMS (mm)", "Normal Point"])
-        st.dataframe(df_sys, use_container_width=True, hide_index=True)
-    else:
-        st.info(f"Nessun satellite salvato oggi per il sistema {sys}.")
 
 with t_mslr: f_form("MSLR")
 with t_mlro: f_form("MLRO")
@@ -68,7 +57,7 @@ with t_dati:
     valid, c_leo, c_meo, c_heo = [], 0, 0, 0
     
     if not df.empty:
-        df["fr2"] = df.apply(lambda r: f"{datetime.strptime(r['data_ora'], '%Y-%m-%d %H:%M:%S').strftime('%Y%m%d_%H%M')}_{r['satellite'].lower().replace(' ','')}_{r['sic_code']}.fr2", axis=1)
+        df["fr2"] = df.apply(lambda r: f"9991_{r['satellite'].lower().replace(' ','')}_crd_{datetime.strptime(r['data_ora'], '%Y-%m-%d %H:%M:%S').strftime('%Y%m%d_%H%M')}_00.fr2", axis=1)
         mslr, mlro = df[df["sistema"] == "MSLR"], df[df["sistema"] == "MLRO"]
         u_mlro = set()
         for _, r_ms in mslr.iterrows():
@@ -102,8 +91,7 @@ with t_dati:
             if st.button("🚨 Nel Registro Elimina Riga", width="stretch"):
                 q("DELETE FROM acquisitions WHERE id = ?", (sel,)); st.rerun()
                 
-        st.subheader("📊 Esporta ed Esporta Report")
-        
+        buf = io.BytesIO()
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         f_cfg = {"Low": ["Starlette", "Stella", "Lares"], "Meo": ["Lageos 1", "Lageos 2", "Lares 2"], "High": ["Etalon 1", "Etalon 2", "Galileo-101"]}
@@ -116,14 +104,13 @@ with t_dati:
             ws.sheet_view.showGridLines = True
             ws.append([])
             c_idx = 2
-            orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
-            
             for s in s_lst:
                 ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+7)
                 cell_s = ws.cell(row=2, column=c_idx, value=s.lower().replace(" ", ""))
                 cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
                 
                 ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+7)
+                orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
                 ws.cell(row=3, column=c_idx, value=sat_info[orb_k].get(s, "7103")).font = f_dt
                 ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
                 
@@ -137,66 +124,50 @@ with t_dati:
                 
                 for r_h in range(2, 5):
                     for c_h in range(c_idx, c_idx+8): ws.cell(row=r_h, column=c_h).border = brd
-                
                 for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", ""]):
-                    c_p1 = ws.cell(row=5, column=c_idx + 0 + p_idx, value=p_tx)
-                    c_p1.font = f_hd; c_p1.alignment = al_c; c_p1.fill = f_grigio; c_p1.border = brd
-                    c_p2 = ws.cell(row=5, column=c_idx + 4 + p_idx, value=p_tx)
-                    c_p2.font = f_hd; c_p2.alignment = al_c; c_p2.fill = f_grigio; c_p2.border = brd
+                    for offset in [0, 4]:
+                        cell_p = ws.cell(row=5, column=c_idx + offset + p_idx, value=p_tx)
+                        cell_p.font = f_hd; cell_p.alignment = al_c; cell_p.fill = f_grigio; cell_p.border = brd
                 c_idx += 8
             
             r_dest = 6
             if not df_v.empty:
-                for row_v in df_v[df_v["Orbita"] == orb_k].to_dict(orient="records"):
-                    if row_v["Satellite"] in s_lst:
-                        s_pos = s_lst.index(row_v["Satellite"])
-                        b_col = 2 + (s_pos * 8)
-                        
-                        d_obj_ms = datetime.strptime(row_v["T_MSLR"], "%Y-%m-%d %H:%M:%S")
-                        fr2_mslr = f"{d_obj_ms.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
-                        t_ms = f"{d_obj_ms.strftime('%H:%M:%S')}.0"
-                        
-                        d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
-                        fr2_mlro_name = f"{d_obj_mo.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
-                        t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
-                        
-                        ws.cell(row=r_dest, column=b_col, value=t_ms).alignment = al_c
-                        ws.cell(row=r_dest, column=b_col+1, value=row_v["R_MS"]).alignment = al_c
-                        ws.cell(row=r_dest, column=b_col+2, value=row_v["N_MS"]).alignment = al_c
-                        
-                        c_file_ms = ws.cell(row=r_dest, column=b_col+3, value=fr2_mslr)
-                        c_file_ms.alignment = al_c; c_file_ms.fill = f_vrd; c_file_ms.font = f_dt
-                        
-                        ws.cell(row=r_dest, column=b_col+4, value=t_mo).alignment = al_c
-                        ws.cell(row=r_dest, column=b_col+5, value=row_v["R_MO"]).alignment = al_c
-                        ws.cell(row=r_dest, column=b_col+6, value=row_v["N_MO"]).alignment = al_c
-                        
-                        c_file_ml = ws.cell(row=r_dest, column=b_col+7, value=fr2_mlro_name)
-                        c_file_ml.alignment = al_c; c_file_ml.fill = f_vrd; c_file_ml.font = f_dt
-                        
-                        for c_h in range(b_col, b_col+8): ws.cell(row=r_dest, column=c_h).border = brd
-                        r_dest += 1
-                        
-            # --- CORREZIONE CICLO AUTO-FIT COLONNE ---
-            for col in ws.columns:
-                max_len = 0
-                col_letter = get_column_letter(col[0].column)  # Prende la proprietà dalla prima cella della tupla
-                for cell in col:
-                    if cell.value:
-                        max_len = max(max_len, len(str(cell.value)))
-                ws.column_dimensions[col_letter].width = max(max_len + 3, 11)
-        
-        buf = io.BytesIO()
+                for row in df_v[df_v["Satellite"].isin(s_lst)].to_dict(orient="records"):
+                    s_pos = s_lst.index(row["Satellite"])
+                    b_col = 2 + (s_pos * 8)
+                    d_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
+                    
+                    t_ms = f"{datetime.strptime(row['T_MSLR'], '%Y-%m-%d %H:%M:%S').hour}.{datetime.strptime(row['T_MSLR'], '%Y-%m-%d %H:%M:%S').strftime('%M')}"
+                    t_ml = f"{d_obj.hour}.{d_obj.strftime('%M')}"
+                    
+                    for o_idx, val in enumerate([t_ms, row["R_MS"], row["N_MS"], ""]):
+                        cell = ws.cell(row=r_dest, column=b_col + o_idx, value=val)
+                        cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
+                    for o_idx, val in enumerate([t_ml, row["R_MO"], row["N_MO"], row["fr2"]]):
+                        cell = ws.cell(row=r_dest, column=b_col + 4 + o_idx, value=val)
+                        cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
+                    for c_b in range(2, 26):
+                        ws.cell(row=r_dest, column=c_b).border = brd
+                    r_dest += 1
+            
+            for r_empty in range(r_dest, 31):
+                for c_b in range(2, 26):
+                    ws.cell(row=r_empty, column=c_b).border = brd
+                    
+            for col in range(1, 26):
+                col_letter = get_column_letter(col)
+                max_len = max(len(str(ws.cell(row=row, column=col).value or '')) for row in range(1, 31))
+                ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
         wb.save(buf)
-        buf.seek(0)
+        st.write("")
+        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
+        st.write("---")
         
-        stringa_data_ora = datetime.now().strftime("%Y%m%d_%H%M")
-        nome_file_personalizzato = f"Laser_Ranging_Tracking_{stringa_data_ora}.xlsx"
+        df_mslr_raw = df[df["sistema"] == "MSLR"]
+        st.markdown("### 🔴 Dati MSLR")
+        if not df_mslr_raw.empty: st.dataframe(df_mslr_raw, width="stretch", hide_index=True)
         
-        st.download_button(
-            label="📥 Scarica Report Excel (.xlsx)",
-            data=buf,
-            file_name=nome_file_personalizzato,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            width="stretch"
-        )
+        df_mlro_raw = df[df["sistema"] == "MLRO"]
+        st.markdown("### 🔵 Dati MLRO")
+        if not df_mlro_raw.empty: st.dataframe(df_mlro_raw, width="stretch", hide_index=True)
+    else: st.info("Nessun dato ancora registrato.")
