@@ -145,7 +145,6 @@ with t_dati:
             sel = st.selectbox("Seleziona riga:", list(opt.keys()), format_func=lambda x: opt[x])
             if st.button("🚨 Nel Registro Elimina Riga", width="stretch"):
                 q("DELETE FROM acquisitions WHERE id = ?", (sel,)); st.rerun()
-                
         buf = io.BytesIO()
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -227,7 +226,6 @@ with t_dati:
                         cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                         cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
-                    # CORREZIONE RIGA 148: Mette correttamente a referenza il testo unito (Note_Accoppiate) nel file Excel
                     cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_Accoppiate"])
                     cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
                     
@@ -238,4 +236,22 @@ with t_dati:
             for r_empty in range(r_dest, 31):
                 for c_b in range(2, 32):
                     ws.cell(row=r_empty, column=c_b).border = brd
+            
             for col in range(1, 32):
+                col_letter = get_column_letter(col)
+                max_len = max(len(str(ws.cell(row_idx, column=col).value or '')) for row_idx in range(1, 31))
+                ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
+                
+        wb.save(buf)
+        st.write("")
+        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
+        st.write("---")
+        
+        df_mslr_raw = df[df["sistema"] == "MSLR"]
+        st.markdown("### 🔴 Dati MSLR")
+        if not df_mslr_raw.empty: st.dataframe(df_mslr_raw[["id", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]], width="stretch", hide_index=True)
+        
+        df_mlro_raw = df[df["sistema"] == "MLRO"]
+        st.markdown("### 🔵 Dati MLRO")
+        if not df_mlro_raw.empty: st.dataframe(df_mlro_raw[["id", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]], width="stretch", hide_index=True)
+    else: st.info("Nessun dato ancora registrato.")
