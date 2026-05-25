@@ -95,6 +95,7 @@ with t_dati:
                     fr2_name = f"9991_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
                     fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
                     
+                    # CORREZIONE: Cambiata la chiave in r_mo["note"] in minuscolo per estrarre sempre il testo a schermo
                     valid.append({
                         "Data": dt_ms.strftime("%Y-%m-%d"),
                         "fr2": fr2_name, 
@@ -231,6 +232,3 @@ with t_dati:
                 ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
         wb.save(buf)
         st.write("")
-        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
-        st.write("---")
-        
