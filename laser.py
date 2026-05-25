@@ -49,11 +49,13 @@ def f_form(sys):
     dt = datetime.now(timezone.utc)
     c1, c2 = st.columns(2)
     with c1: d = st.date_input("Data (UTC)", value=dt.date(), key=f"d_{sys}")
-    with c2: t = st.time_input("Ora (UTC)", value=dt.time().replace(second=0, microsecond=0), key=f"t_{sys}")
+    
+    # MODIFICA: Inserito step=60 per sbloccare la selezione dell'orario minuto per minuto
+    with c2: t = st.time_input("Ora (UTC)", value=dt.time().replace(second=0, microsecond=0), step=60, key=f"t_{sys}")
+    
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
     
-    # Inizializza lo stato per mostrare il messaggio "Salvato"
     if f"saved_{sys}" not in st.session_state:
         st.session_state[f"saved_{sys}"] = False
         
@@ -63,7 +65,6 @@ def f_form(sys):
         st.session_state[f"saved_{sys}"] = True
         st.rerun()
         
-    # Mostra la scritta "Salvato" sotto il bottone rosso
     if st.session_state[f"saved_{sys}"]:
         st.success("Salvato")
         st.session_state[f"saved_{sys}"] = False
