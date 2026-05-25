@@ -78,7 +78,7 @@ with t_mlro: f_form("MLRO")
 with t_dati:
     st.subheader("📋 Gestione Registro ed Obiettivi")
     raw = q("SELECT id, sistema, orbita, satellite, sic_code, data_ora, rms, normal_point, note FROM acquisitions ORDER BY id DESC")
-    df = pd.DataFrame(raw, columns=["id", "sistema", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "Note"]) if raw else pd.DataFrame()
+    df = pd.DataFrame(raw, columns=["id", "sistema", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]) if raw else pd.DataFrame()
     valid, c_leo, c_meo, c_heo = [], 0, 0, 0
     
     if not df.empty:
@@ -108,7 +108,7 @@ with t_dati:
                         "T_MLRO": r_mo["data_ora"], 
                         "R_MO": round(r_mo["rms"], 1), 
                         "N_MO": r_mo["normal_point"],
-                        "Note_MLRO": r_mo["Note"] if r_mo["Note"] else ""
+                        "Note_MLRO": r_mo["note"] if r_mo["note"] else ""
                     })
                     break
         df_v = pd.DataFrame(valid) if valid else pd.DataFrame()
@@ -190,7 +190,7 @@ with t_dati:
             
             r_dest = 6
             if not df_v.empty:
-                for row in df_v[df_v["Satellite"].isin(s_lst) if f_nm != "High" else df_v["Data"].notna()].to_dict(orient="records"):
+                for row in df_v.to_dict(orient="records"):
                     is_galileo = row["Satellite"].startswith("Galileo-")
                     if f_nm == "High" and not is_galileo and row["Satellite"] not in s_lst: continue
                     if f_nm == "High" and is_galileo and "Galileo-Bridge" not in s_lst: continue
@@ -231,3 +231,6 @@ with t_dati:
                 ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
         wb.save(buf)
         st.write("")
+        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
+        st.write("---")
+        
