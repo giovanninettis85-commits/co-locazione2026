@@ -152,30 +152,44 @@ with t_dati:
                         s_pos = s_lst.index(row_v["Satellite"])
                         b_col = 2 + (s_pos * 8)
                         
-                        # Calcolo stringhe nomi file .fr2 basati sui rispettivi orari
                         d_obj_ms = datetime.strptime(row_v["T_MSLR"], "%Y-%m-%d %H:%M:%S")
                         fr2_mslr = f"{d_obj_ms.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
                         t_ms = f"{d_obj_ms.strftime('%H:%M:%S')}.0"
                         
                         d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
-                        fr2_mlro = f"{d_obj_mo.strftime('%H:%M:%S')}.0"  # Ripristinato formato orario mlro se necessario, ma generiamo la stringa .fr2 corretta sotto:
                         fr2_mlro_name = f"{d_obj_mo.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
                         t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
                         
-                        # Inserimento dati blocco MSLR
+                        # Scrittura dati MSLR
                         ws.cell(row=r_dest, column=b_col, value=t_ms).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+1, value=row_v["R_MS"]).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+2, value=row_v["N_MS"]).alignment = al_c
-                        ws.cell(row=r_dest, column=b_col+3, value=fr2_mslr).alignment = al_c  # <-- Inserito nome file mslr
                         
-                        # Inserimento dati blocco MLRO
+                        # Cella file MSLR colorata di VERDE (f_vrd)
+                        c_file_ms = ws.cell(row=r_dest, column=b_col+3, value=fr2_mslr)
+                        c_file_ms.alignment = al_c; c_file_ms.fill = f_vrd; c_file_ms.font = f_dt
+                        
+                        # Scrittura dati MLRO
                         ws.cell(row=r_dest, column=b_col+4, value=t_mo).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+5, value=row_v["R_MO"]).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+6, value=row_v["N_MO"]).alignment = al_c
-                        ws.cell(row=r_dest, column=b_col+7, value=fr2_mlro_name).alignment = al_c  # <-- Inserito nome file mlro
+                        
+                        # Cella file MLRO colorata di VERDE (f_vrd)
+                        c_file_ml = ws.cell(row=r_dest, column=b_col+7, value=fr2_mlro_name)
+                        c_file_ml.alignment = al_c; c_file_ml.fill = f_vrd; c_file_ml.font = f_dt
                         
                         for c_h in range(b_col, b_col+8): ws.cell(row=r_dest, column=c_h).border = brd
                         r_dest += 1
+                        
+            # --- AGGIUSTAMENTO AUTOMATICO DELLE COLONNE (AUTO-FIT) ---
+            for col in ws.columns:
+                max_len = 0
+                col_letter = get_column_letter(col[0].column)
+                for cell in col:
+                    if cell.value:
+                        max_len = max(max_len, len(str(cell.value)))
+                # Imposta larghezza ottimale con un piccolo margine di sicurezza
+                ws.column_dimensions[col_letter].width = max(max_len + 3, 11)
         
         buf = io.BytesIO()
         wb.save(buf)
