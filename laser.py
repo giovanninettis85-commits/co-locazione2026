@@ -104,7 +104,6 @@ with t_dati:
                 
         st.subheader("📊 Esporta ed Esporta Report")
         
-        # --- LOGICA DI GENERAZIONE IN MEMORIA (BYTESIO) ---
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         f_cfg = {"Low": ["Starlette", "Stella", "Lares"], "Meo": ["Lageos 1", "Lageos 2", "Lares 2"], "High": ["Etalon 1", "Etalon 2", "Galileo-101"]}
@@ -153,31 +152,42 @@ with t_dati:
                         s_pos = s_lst.index(row_v["Satellite"])
                         b_col = 2 + (s_pos * 8)
                         
+                        # Calcolo stringhe nomi file .fr2 basati sui rispettivi orari
                         d_obj_ms = datetime.strptime(row_v["T_MSLR"], "%Y-%m-%d %H:%M:%S")
+                        fr2_mslr = f"{d_obj_ms.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
                         t_ms = f"{d_obj_ms.strftime('%H:%M:%S')}.0"
+                        
+                        d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
+                        fr2_mlro = f"{d_obj_mo.strftime('%H:%M:%S')}.0"  # Ripristinato formato orario mlro se necessario, ma generiamo la stringa .fr2 corretta sotto:
+                        fr2_mlro_name = f"{d_obj_mo.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
+                        t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
+                        
+                        # Inserimento dati blocco MSLR
                         ws.cell(row=r_dest, column=b_col, value=t_ms).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+1, value=row_v["R_MS"]).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+2, value=row_v["N_MS"]).alignment = al_c
+                        ws.cell(row=r_dest, column=b_col+3, value=fr2_mslr).alignment = al_c  # <-- Inserito nome file mslr
                         
-                        d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
-                        t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
+                        # Inserimento dati blocco MLRO
                         ws.cell(row=r_dest, column=b_col+4, value=t_mo).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+5, value=row_v["R_MO"]).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+6, value=row_v["N_MO"]).alignment = al_c
+                        ws.cell(row=r_dest, column=b_col+7, value=fr2_mlro_name).alignment = al_c  # <-- Inserito nome file mlro
                         
                         for c_h in range(b_col, b_col+8): ws.cell(row=r_dest, column=c_h).border = brd
                         r_dest += 1
         
-        # Salvataggio nel buffer virtuale
         buf = io.BytesIO()
         wb.save(buf)
         buf.seek(0)
         
-        # --- PULSANTE DI SCARICAMENTO DIRETTO (CARTELLA DOWNLOAD) ---
+        stringa_data_ora = datetime.now().strftime("%Y%m%d_%H%M")
+        nome_file_personalizzato = f"Laser_Ranging_Tracking_{stringa_data_ora}.xlsx"
+        
         st.download_button(
             label="📥 Scarica Report Excel (.xlsx)",
             data=buf,
-            file_name="Laser_Ranging_Tracking.xlsx",
+            file_name=nome_file_personalizzato,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             width="stretch"
         )
