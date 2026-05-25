@@ -20,9 +20,15 @@ def q(sql, p=()):
         c.commit()
         return cursor.fetchall()
 
-# Aggiornato il database per supportare la colonna delle note scritte a mano
+# Crea la tabella di base se non esiste
 q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
-     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER, note TEXT)""")
+     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER)""")
+
+# RISOLUZIONE ERRORE: Forza l'aggiornamento sicuro del database aggiungendo la colonna 'note' se manca
+try:
+    q("ALTER TABLE acquisitions ADD COLUMN note TEXT")
+except:
+    pass # Se la colonna esiste già, passa oltre senza bloccare il programma
 
 sat_info = {
     "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
@@ -54,7 +60,6 @@ def f_form(sys):
     rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
     np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
     
-    # MODIFICA: Aggiunto il campo di testo per l'inserimento manuale delle note da smartphone
     nota = st.text_input("Note", value="", key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni qui...")
     
     if f"saved_{sys}" not in st.session_state:
@@ -144,7 +149,6 @@ with t_dati:
             ws.append([])
             c_idx = 2
             for s in s_lst:
-                # Allargato a 10 colonne totali (1 Data + 4 MSLR + 5 MLRO)
                 ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+9)
                 
                 display_name = "galileo-xxx" if s == "Galileo-Bridge" else s.lower().replace(" ", "")
@@ -164,7 +168,6 @@ with t_dati:
                 cell_ms = ws.cell(row=4, column=c_idx+1, value="MSLR")
                 cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
                 
-                # MLRO allargata a 5 colonne per fare spazio alle Note
                 ws.merge_cells(start_row=4, start_column=c_idx+5, end_row=4, end_column=c_idx+9)
                 cell_ml = ws.cell(row=4, column=c_idx+5, value="MLRO")
                 cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
@@ -182,7 +185,6 @@ with t_dati:
                     cell_p2 = ws.cell(row=5, column=c_idx + 5 + p_idx, value=p_tx)
                     cell_p2.font = f_hd; cell_p2.alignment = al_c; cell_p2.fill = f_grigio; cell_p2.border = brd
                 
-                # Sotto-intestazione della colonna Note alla riga 5
                 cell_n_title = ws.cell(row=5, column=c_idx + 9, value="Note")
                 cell_n_title.font = f_hd; cell_n_title.alignment = al_c; cell_n_title.fill = f_grigio; cell_n_title.border = brd
                 
@@ -190,7 +192,7 @@ with t_dati:
             
             r_dest = 6
             if not df_v.empty:
-                for row in df_v[df_v["Satellite"].isin(s_lst) if f_nm != "High" else df_v["Data"].notna()].to_dict(orient="records"):
+                for row in df_v.to_dict(orient="records"):
                     is_galileo = row["Satellite"].startswith("Galileo-")
                     if f_nm == "High" and not is_galileo and row["Satellite"] not in s_lst: continue
                     if f_nm == "High" and is_galileo and "Galileo-Bridge" not in s_lst: continue
@@ -214,7 +216,6 @@ with t_dati:
                         cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                         cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
-                    # Scrittura del testo delle Note a destra del file .fr2 di MLRO
                     cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_MLRO"])
                     cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
                     
@@ -228,3 +229,10 @@ with t_dati:
                     
             for col in range(1, 32):
                 col_letter = get_column_letter(col)
+                max_len = max(len(str(ws.cell(row=row, column=col).value or '')) for row in range(1, 31))
+                ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
+        wb.save(buf)
+        st.write("")
+        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
+        st.write("---")
+        
