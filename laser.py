@@ -152,17 +152,14 @@ with t_dati:
                         s_pos = s_lst.index(row_v["Satellite"])
                         b_col = 2 + (s_pos * 8)
                         
-                        # Blocco MSLR: Calcolo stringhe e orari basati su T_MSLR
                         d_obj_ms = datetime.strptime(row_v["T_MSLR"], "%Y-%m-%d %H:%M:%S")
                         fr2_mslr = f"{d_obj_ms.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
                         t_ms = f"{d_obj_ms.strftime('%H:%M:%S')}.0"
                         
-                        # Blocco MLRO: Calcolo stringhe e orari basati su T_MLRO (CORRETTO!)
                         d_obj_mo = datetime.strptime(row_v["T_MLRO"], "%Y-%m-%d %H:%M:%S")
                         fr2_mlro_name = f"{d_obj_mo.strftime('%Y%m%d_%H%M')}_{row_v['Satellite'].lower().replace(' ','')}_{row_v['SIC']}.fr2"
                         t_mo = f"{d_obj_mo.strftime('%H:%M:%S')}.0"
                         
-                        # Scrittura dati MSLR
                         ws.cell(row=r_dest, column=b_col, value=t_ms).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+1, value=row_v["R_MS"]).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+2, value=row_v["N_MS"]).alignment = al_c
@@ -170,7 +167,6 @@ with t_dati:
                         c_file_ms = ws.cell(row=r_dest, column=b_col+3, value=fr2_mslr)
                         c_file_ms.alignment = al_c; c_file_ms.fill = f_vrd; c_file_ms.font = f_dt
                         
-                        # Scrittura dati MLRO (Ora legge d_obj_mo e fr2_mlro_name in modo indipendente)
                         ws.cell(row=r_dest, column=b_col+4, value=t_mo).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+5, value=row_v["R_MO"]).alignment = al_c
                         ws.cell(row=r_dest, column=b_col+6, value=row_v["N_MO"]).alignment = al_c
@@ -181,9 +177,10 @@ with t_dati:
                         for c_h in range(b_col, b_col+8): ws.cell(row=r_dest, column=c_h).border = brd
                         r_dest += 1
                         
+            # --- CORREZIONE CICLO AUTO-FIT COLONNE ---
             for col in ws.columns:
                 max_len = 0
-                col_letter = get_column_letter(col.column)
+                col_letter = get_column_letter(col[0].column)  # Prende la proprietà dalla prima cella della tupla
                 for cell in col:
                     if cell.value:
                         max_len = max(max_len, len(str(cell.value)))
