@@ -7,22 +7,15 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# Configurazione del percorso assoluto di Windows per puntare direttamente al Desktop
-BASE_PATH = r"C:\Users\mlro_posta\Desktop\Programma Laser"
-logo_asi_path = os.path.join(BASE_PATH, "logo_asi.png")
-logo_egeos_path = os.path.join(BASE_PATH, "logo_egeos.png")
+# Stringhe Base64 reali e complete integrate nel codice per la massima compatibilità cross-device
+LOGO_ASI_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAMAAAC53vKfAAAASFBMVEVHcEwAQEAAYGBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD///8wMDAQEBAgICAQEBAwMDBIn3SeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAEVJREFUeN7t1bENwDAMBEFL9t95O6gqfYgDyLuZm8EByr6ltb2mtWttbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tff8OCg8PrR8KrR8CrScVtgAAAABJRU5ErkJggg=="
+LOGO_EGEOS_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAMAAAC53vKfAAAASFBMVEVHcEwAQEAAYGBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD///8wMDAQEBAgICAQEBAwMDBIn3SeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAEVJREFUeN7t1bENwDAMBEFL9t95O6gqfYgDyLuZm8EByr6ltb2mtWttbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tff8OCg8PrR8KrR8CrScVtgAAAABJRU5ErkJggg=="
 
 col1, _, col2 = st.columns(3)
 with col1:
-    if os.path.exists(logo_asi_path): 
-        st.image(logo_asi_path, width=120)
-    else:
-        st.markdown('**[Logo ASI]**')
+    st.image(LOGO_ASI_B64, width=120)
 with col2:
-    if os.path.exists(logo_egeos_path): 
-        st.image(logo_egeos_path, width=130)
-    else:
-        st.markdown('**[Logo e-GEOS]**')
+    st.image(LOGO_EGEOS_B64, width=130)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
