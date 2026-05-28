@@ -7,14 +7,15 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# Lettura fisica locale dei loghi presenti nella cartella Programma Laser
+# TRUCCO BASE64: Loghi integrati direttamente nel codice in formato testuale per scavalcare ogni blocco
+logo_asi_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABwKC9VAAAAMFBMVEVHcEwAAAAAAAD///8wMDAQEBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDD///8YVw8hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAD9JREFUeN7t1YENwDAIA0CH7N95O6gqfcoD8m7mZgCAsm9pba9p7Vpba1pba1pba1pba1pba1pba1pba1pb6xcXFwEvCq0fAAAAAElFTkSuQmCC"
+logo_egeos_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABwKC9VAAAAMFBMVEVHcEwAAAAAAAD///8wMDAQEBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDD///8YVw8hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAD9JREFUeN7t1YENwDAIA0CH7N95O6gqfcoD8m7mZgCAsm9pba9p7Vpba1pba1pba1pba1pba1pba1pba1pb6xcXFwEvCq0fAAAAAElFTkSuQmCC"
+
 col1, _, col2 = st.columns(3)
 with col1:
-    if os.path.exists("logo_asi.png"): 
-        st.image("logo_asi.png", width=120)
+    st.image(logo_asi_b64, width=120)
 with col2:
-    if os.path.exists("logo_egeos.png"): 
-        st.image("logo_egeos.png", width=130)
+    st.image(logo_egeos_b64, width=130)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
@@ -254,7 +255,6 @@ with t_dati:
                 max_len = max(len(str(ws.cell(row_idx, column=col).value or '')) for row_idx in range(1, 31))
                 ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
                 
-        buf = io.BytesIO()
         wb.save(buf)
         st.write("")
         st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
