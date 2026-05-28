@@ -7,12 +7,14 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
+# Lettura fisica locale dei loghi presenti nella cartella Programma Laser
 col1, _, col2 = st.columns(3)
 with col1:
-    # RIPRISTINO LOGHI AZIENDALI: Caricamento diretto sicuro tramite link web statico per vederli sempre
-    st.image("https://asi.it", width=120)
+    if os.path.exists("logo_asi.png"): 
+        st.image("logo_asi.png", width=120)
 with col2:
-    st.image("https://e-geos.it", width=130)
+    if os.path.exists("logo_egeos.png"): 
+        st.image("logo_egeos.png", width=130)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
@@ -147,7 +149,7 @@ with t_dati:
         else:
             st.warning("⚠️ Nessun passaggio accoppiato entro i 20 minuti.")
             
-        with st.expander("🗑️ Elimina record"):
+        with st.expander("🗑️ Nel Registro Elimina Riga"):
             opt = {r["id"]: f"ID {r['id']} - {r['satellite']} ({r['sistema']}) del {r['data_ora']}" for _, r in df.iterrows()}
             sel = st.selectbox("Seleziona riga:", list(opt.keys()), format_func=lambda x: opt[x])
             if st.button("🚨 Nel Registro Elimina Riga", width="stretch"):
