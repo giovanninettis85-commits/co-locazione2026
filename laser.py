@@ -17,7 +17,6 @@ def q(sql, p=()):
 q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
      sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER, note TEXT)""")
 
-# Banner testuali CSS fissi istituzionali
 col1, _, col2 = st.columns(3)
 with col1:
     st.markdown('<div style="background-color:#002F6C; color:white; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-left: 5px solid #00A699;">🛰️ ASI<br><span style="font-size:10px; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">Agenzia Spaziale Italiana</span></div>', unsafe_allow_html=True)
@@ -97,12 +96,7 @@ with t_dati:
                     
                     n_ms = r_ms["note"] if r_ms["note"] else ""
                     n_mo = r_mo["note"] if r_mo["note"] else ""
-                    if n_ms and n_mo:
-                        nota_unita = f"{n_ms} | {n_mo}"
-                    elif n_ms:
-                        nota_unita = n_ms
-                    else:
-                        nota_unita = n_mo
+                    nota_unita = f"{n_ms} | {n_mo}" if n_ms and n_mo else (n_ms if n_ms else n_mo)
                     
                     valid.append({
                         "Data": dt_ms.strftime("%Y-%m-%d"),
@@ -154,38 +148,54 @@ with t_dati:
         f_grigio = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
         brd, al_c = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin')), Alignment(horizontal="center", vertical="center")
         
+        # Estrazione ordinata cronologicamente: dal piu vecchio (riga superiore) al piu recente (riga inferiore)
+        raw_asc = q("SELECT id, sistema, orbita, satellite, sic_code, data_ora, rms, normal_point, note FROM acquisitions ORDER BY data_ora ASC")
+        df_asc = pd.DataFrame(raw_asc, columns=["id", "sistema", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]) if raw_asc else pd.DataFrame()
+        valid_asc = []
+        
+        if not df_asc.empty:
+            mslr_a, mlro_a = df_asc[df_asc["sistema"] == "MSLR"], df_asc[df_asc["sistema"] == "MLRO"]
+            u_mlro_a = set()
+            for _, r_ms in mslr_a.iterrows():
+                dt_ms = datetime.strptime(r_ms["data_ora"], "%Y-%m-%d %H:%M:%S")
+                for _, r_mo in mlro_a.iterrows():
+                    if r_mo["id"] in u_mlro_a or r_ms["satellite"] != r_mo["satellite"]: continue
+                    dt_mo = datetime.strptime(r_mo["data_ora"], "%Y-%m-%d %H:%M:%S")
+                    if abs(dt_ms - dt_mo) <= timedelta(minutes=20):
+                        u_mlro_a.add(r_mo["id"])
+                        fr2_name = f"7941_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
+                        fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
+                        n_ms = r_ms["note"] if r_ms["note"] else ""
+                        n_mo = r_mo["note"] if r_mo["note"] else ""
+                        nota_unita = f"{n_ms} | {n_mo}" if n_ms and n_mo else (n_ms if n_ms else n_mo)
+                        
+                        valid_asc.append({
+                            "Data": dt_ms.strftime("%Y-%m-%d"), "Satellite": r_ms["satellite"], "Orbita": r_ms["orbita"],
+                            "T_MSLR": r_ms["data_ora"], "R_MS": round(r_ms["rms"], 1), "N_MS": r_ms["normal_point"], "fr2_mslr": fr2_ms_old,
+                            "T_MLRO": r_mo["data_ora"], "R_MO": round(r_mo["rms"], 1), "N_MO": r_mo["normal_point"], "fr2_mlro": fr2_name,
+                            "Note_Accoppiate": nota_unita
+                        })
+                        break
+        
+        df_v_asc = pd.DataFrame(valid_asc) if valid_asc else pd.DataFrame()
+
         for f_nm, s_lst in f_cfg.items():
             ws = wb.create_sheet(title=f_nm)
             ws.sheet_view.showGridLines = True
             
-            # Blocco intestazione dati a riga 1
+            # ALLINEAMENTO RIGA 1: Le colonne partono tassativamente dall'inizio del foglio Excel
+            ws.cell(row=1, column=1, value="Data").font = f_hd; ws.cell(row=1, column=1).fill = f_grigio; ws.cell(row=1, column=1).border = brd; ws.cell(row=1, column=1).alignment = al_c
             c_idx = 2
             for s in s_lst:
-                ws.merge_cells(start_row=1, start_column=c_idx, end_row=1, end_column=c_idx+3)
-                cell_ms = ws.cell(row=1, column=c_idx, value="MSLR")
-                cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
-                
-                ws.merge_cells(start_row=1, start_column=c_idx+4, end_row=1, end_column=c_idx+8)
-                cell_ml = ws.cell(row=1, column=c_idx+4, value="MLRO")
-                cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
-                
-                for r_h in range(1, 2):
-                    for c_h in range(c_idx, c_idx+9): ws.cell(row=r_h, column=c_h).border = brd
-                
-                for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", "File Name"]):
-                    cell_p1 = ws.cell(row=2, column=c_idx + p_idx, value=p_tx)
-                    cell_p1.font = f_hd; cell_p1.alignment = al_c; cell_p1.fill = f_grigio; cell_p1.border = brd
-                    
-                    cell_p2 = ws.cell(row=2, column=c_idx + 4 + p_idx, value=p_tx)
-                    cell_p2.font = f_hd; cell_p2.alignment = al_c; cell_p2.fill = f_grigio; cell_p2.border = brd
-                
-                cell_n_title = ws.cell(row=2, column=c_idx + 8, value="Note")
-                cell_n_title.font = f_hd; cell_n_title.alignment = al_c; cell_n_title.fill = f_grigio; cell_n_title.border = brd
+                headers = [f"Time start MSLR ({s})", f"Rms MSLR ({s})", f"NP MSLR ({s})", f"File Name MSLR ({s})", f"Time start MLRO ({s})", f"Rms MLRO ({s})", f"NP MLRO ({s})", f"File Name MLRO ({s})", f"Note ({s})"]
+                for p_idx, p_tx in enumerate(headers):
+                    cell = ws.cell(row=1, column=c_idx + p_idx, value=p_tx)
+                    cell.font = f_hd; cell.alignment = al_c; cell.fill = f_grigio; cell.border = brd
                 c_idx += 9
             
-            r_dest = 3
-            if not df_v.empty:
-                for row in df_v.to_dict(orient="records"):
+            r_dest = 2
+            if not df_v_asc.empty:
+                for row in df_v_asc.to_dict(orient="records"):
                     is_galileo = row["Satellite"].startswith("Galileo-")
                     if f_nm == "High" and not is_galileo and row["Satellite"] not in s_lst: continue
                     if f_nm == "High" and is_galileo and "Galileo-Bridge" not in s_lst: continue
@@ -194,8 +204,8 @@ with t_dati:
                     s_pos = s_lst.index("Galileo-Bridge") if is_galileo and f_nm == "High" else s_lst.index(row["Satellite"])
                     b_col = 2 + (s_pos * 9)
                     
-                    ws.cell(row=r_dest, column=1, value=row["Data"]).font = f_dt
-                    ws.cell(row=r_dest, column=1).alignment = al_c
+                    cell_d = ws.cell(row=r_dest, column=1, value=row["Data"])
+                    cell_d.font = f_dt; cell_d.alignment = al_c; cell_d.border = brd
                     
                     if row["T_MSLR"]:
                         dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
@@ -203,18 +213,19 @@ with t_dati:
                         vals = [t_ms, row["R_MS"], row["N_MS"], row["fr2_mslr"]]
                         for o_idx, val in enumerate(vals):
                             cell = ws.cell(row=r_dest, column=b_col + o_idx, value=val)
-                            cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
+                            cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c; cell.border = brd
                     if row["T_MLRO"]:
                         dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
                         t_ml = f"{dt_mo_obj.hour}.{dt_mo_obj.strftime('%M')}"
                         vals = [t_ml, row["R_MO"], row["N_MO"], row["fr2_mlro"]]
                         for o_idx, val in enumerate(vals):
                             cell = ws.cell(row=r_dest, column=b_col + 4 + o_idx, value=val)
-                            cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
+                            cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c; cell.border = brd
                         
                     cell_nt = ws.cell(row=r_dest, column=b_col + 8, value=row["Note_Accoppiate"])
-                    cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
-                    for c_b in range(1, 29): ws.cell(row=r_dest, column=c_b).border = brd
+                    cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c; cell_nt.border = brd
+                    for c_b in range(1, 29):
+                        if not ws.cell(row=r_dest, column=c_b).border.left: ws.cell(row=r_dest, column=c_b).border = brd
                     r_dest += 1
             
             for r_empty in range(r_dest, 31):
