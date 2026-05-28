@@ -7,12 +7,22 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# RISOLUZIONE DEFINITIVA LOGHI: Caricamento tramite server CDN ufficiale per vederli ovunque a schermo
+# Configurazione del percorso assoluto di Windows per puntare direttamente al Desktop
+BASE_PATH = r"C:\Users\mlro_posta\Desktop\Programma Laser"
+logo_asi_path = os.path.join(BASE_PATH, "logo_asi.png")
+logo_egeos_path = os.path.join(BASE_PATH, "logo_egeos.png")
+
 col1, _, col2 = st.columns(3)
 with col1:
-    st.image("https://wikimedia.org", width=120)
+    if os.path.exists(logo_asi_path): 
+        st.image(logo_asi_path, width=120)
+    else:
+        st.markdown('**[Logo ASI]**')
 with col2:
-    st.image("https://wikimedia.org", width=130)
+    if os.path.exists(logo_egeos_path): 
+        st.image(logo_egeos_path, width=130)
+    else:
+        st.markdown('**[Logo e-GEOS]**')
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
@@ -252,6 +262,7 @@ with t_dati:
                 max_len = max(len(str(ws.cell(row_idx, column=col).value or '')) for row_idx in range(1, 31))
                 ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
                 
+        buf = io.BytesIO()
         wb.save(buf)
         st.write("")
         st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
