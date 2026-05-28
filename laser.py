@@ -1,18 +1,18 @@
 import streamlit as st
 import pandas as pd
-import sqlite3, io, openpyxl, os
+import sqlite3, io, openpyxl, os, base64
 from datetime import datetime, time, timedelta, timezone
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# SOLUZIONE INDISTRUTTIBILE: Intestazioni istituzionali in puro CSS a prova di blocchi
+# SOLUZIONE CONTENITORI CSS PER ENTI ISTITUZIONALI
 col1, _, col2 = st.columns(3)
 with col1:
-    st.markdown('<div style="background-color:#002F6C; color:white; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; letter-spacing:1px; box-shadow: 2px 2px 6px rgba(0,0,0,0.15); border-left: 5px solid #00A699;">🛰️ ASI<br><span style="font-size:10px; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">Agenzia Spaziale Italiana</span></div>', unsafe_allow_html=True)
+    st.markdown('<div style="background-color:#002F6C; color:white; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-left: 5px solid #00A699;">🛰️ ASI<br><span style="font-size:10px; font-weight:normal; opacity:0.85;">Agenzia Spaziale Italiana</span></div>', unsafe_allow_html=True)
 with col2:
-    st.markdown('<div style="background-color:#2F2F2F; color:#92D050; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; letter-spacing:1px; box-shadow: 2px 2px 6px rgba(0,0,0,0.15); border-right: 5px solid #92D050;">📡 e-GEOS<br><span style="font-size:10px; color:white; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">AN ASI / TELESPAZIO COMPANY</span></div>', unsafe_allow_html=True)
+    st.markdown('<div style="background-color:#2F2F2F; color:#92D050; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-right: 5px solid #92D050;">📡 e-GEOS<br><span style="font-size:10px; color:white; font-weight:normal; opacity:0.85;">AN ASI / TELESPAZIO COMPANY</span></div>', unsafe_allow_html=True)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
@@ -28,6 +28,97 @@ try:
     q("ALTER TABLE acquisitions ADD COLUMN note TEXT")
 except:
     pass
+
+# --- DISLOCAZIONE PULSANTE DI EMERGENZA NELLA SIDEBAR PER ARCHIVIO FOGLI ---
+with st.sidebar:
+    st.markdown("### ⚙️ Strumenti Archivio")
+    if st.button("🚀 IMPORTA TUTTI I 3 FOGLI ADESSO", type="primary", use_container_width=True):
+        tutto = [
+            ('MSLR', 'Bassa (LEO)', 'Stella', '0643', '2026-05-12 09:20:00', 2.4, 16, ''),
+            ('MLRO', 'Bassa (LEO)', 'Stella', '0643', '2026-05-12 09:20:00', 2.3, 10, 'Session1 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Stella', '0643', '2026-05-14 10:10:00', 4.1, 4, ''),
+            ('MLRO', 'Bassa (LEO)', 'Stella', '0643', '2026-05-14 10:04:00', 3.4, 2, 'Session2 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Stella', '0643', '2026-05-19 20:51:00', 8.5, 13, ''),
+            ('MLRO', 'Bassa (LEO)', 'Stella', '0643', '2026-05-19 20:51:00', 3.2, 5, 'Session1'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-12 07:48:00', 3.1, 10, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-12 07:48:00', 2.8, 15, 'Session1 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-12 09:37:00', 5.9, 12, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-12 09:37:00', 3.2, 7, 'Session1 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-13 06:37:00', 1.3, 5, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-13 06:37:00', 2.5, 12, 'Session1 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-14 08:26:00', 6.2, 10, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-14 08:27:00', 2.9, 6, 'Session2 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-15 06:45:00', 6.5, 16, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-15 06:45:00', 2.7, 7, 'Definizione 1'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-21 07:07:00', 6.3, 15, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-21 07:03:00', 3.3, 9, 'session1'),
+            ('MSLR', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-22 07:23:00', 5.1, 4, ''),
+            ('MLRO', 'Bassa (LEO)', 'Starlette', '1134', '2026-05-22 07:23:00', 2.5, 5, 'session1'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-11 19:39:36', 3.1, 13, ''),
+            ('MLRO', 'Bassa (LEO)', 'Lares', '5987', '2026-05-11 19:39:00', 1.8, 10, 'Session3 process manuale Digos')
+        ]
+        tutto += [
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-14 08:21:15', 5.1, 7, 'sessione2'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-14 16:21:21', 8.2, 5, ''),
+            ('MLRO', 'Bassa (LEO)', 'Lares', '5987', '2026-05-14 16:21:21', 2.3, 10, 'Session3 process manuale Digos'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-20 15:56:24', 4.1, 24, 'session5'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-22 07:40:11', 6.2, 11, 'session1'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-22 15:40:39', 3.8, 21, ''),
+            ('MLRO', 'Bassa (LEO)', 'Lares', '5987', '2026-05-22 15:40:00', 3.0, 21, 'sessione4'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-25 14:31:00', 14.3, 21, ''),
+            ('MLRO', 'Bassa (LEO)', 'Lares', '5987', '2026-05-25 14:32:00', 2.9, 6, 'sessione3'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-28 05:04:00', 6.1, 16, ''),
+            ('MLRO', 'Bassa (LEO)', 'Lares', '5987', '2026-05-28 05:04:00', 2.8, 4, 'sessione2'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-28 13:16:16', 13.1, 16, 'sessione 4'),
+            ('MSLR', 'Bassa (LEO)', 'Lares', '5987', '2026-05-28 15:15:15', 12.7, 19, ''),
+            ('MLRO', 'Bassa (LEO)', 'Lares', '5987', '2026-05-28 15:08:00', 3.5, 21, 'sessione5'),
+            ('MSLR', 'Alta (HEO/GEO)', 'Etalon 1', '0525', '2026-05-11 19:44:00', 37.38, 5, 'da verificare riga alto rms'),
+            ('MLRO', 'Alta (HEO/GEO)', 'Etalon 1', '0525', '2026-05-11 19:43:00', 11.19, 4, 'Session1 process manuale Digos'),
+            ('MSLR', 'Alta (HEO/GEO)', 'Galileo-233', '7101', '2026-05-22 21:48:00', 0.0, 1, 'Mancano dati meteo'),
+            ('MLRO', 'Alta (HEO/GEO)', 'Galileo-233', '7101', '2026-05-22 21:35:00', 3.47, 4, 'Mancano dati meteo'),
+            ('MSLR', 'Alta (HEO/GEO)', 'Galileo-209', '7209', '2026-05-23 00:45:00', 7.87, 1, 'sessione1'),
+            ('MLRO', 'Alta (HEO/GEO)', 'Galileo-209', '7209', '2026-05-23 00:43:00', 4.33, 4, 'sessione1'),
+            ('MSLR', 'Alta (HEO/GEO)', 'Galileo-101', '7101', '2026-05-27 23:12:00', 25.21, 2, 'Mlro non acquisito | sessione2'),
+            ('MSLR', 'Alta (HEO/GEO)', 'Galileo-101', '7101', '2026-05-28 20:36:00', 11.21, 4, 'MLRO NON ACQUISITO | SESSIONE 8'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-11 10:11:00', 3.86, 10, ''),
+            ('MLRO', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-11 10:05:00', 4.61, 10, 'Mlro output generato'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-11 11:17:00', 2.37, 8, ''),
+            ('MLRO', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-11 11:11:00', 4.41, 10, 'Mlro output generato'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-11 13:58:00', 5.12, 11, ''),
+            ('MLRO', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-11 13:42:00', 4.37, 5, 'Mlro output generato'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-15 13:16:00', 6.01, 11, ''),
+            ('MLRO', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-15 13:16:00', 4.35, 10, 'Mlro output generato'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-15 15:10:00', 4.10, 4, ''),
+            ('MLRO', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-15 15:02:00', 4.31, 10, 'Mlro output generato'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-20 12:38:00', 6.01, 11, 'Mlro no data'),
+            ('MSLR', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-25 15:16:00', 3.00, 10, ''),
+            ('MLRO', 'Media (MEO)', 'Lageos 1', '1155', '2026-05-25 15:17:00', 4.02, 17, 'sessione 1'),
+            ('MLRO', 'Media (MEO)', 'Lageos 2', '5986', '2026-05-14 05:31:00', 4.04, 15, 'Mlro resulta male'),
+            ('MSLR', 'Media (MEO)', 'Lageos 2', '5986', '2026-05-21 07:20:00', 5.01, 10, 'sessione1'),
+            ('MLRO', 'Media (MEO)', 'Lageos 2', '5986', '2026-05-21 07:11:00', 3.20, 10, 'sessione1'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-11 14:24:00', 4.06, 18, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-11 13:57:00', 3.93, 22, 'Session1 process manuale Digos'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-11 18:15:00', 3.41, 10, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-11 18:11:00', 3.89, 11, 'Session3 process manuale Digos'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-20 03:41:00', 4.02, 23, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-20 03:38:00', 3.52, 20, ''),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-21 06:01:00', 3.98, 9, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-21 06:03:00', 4.05, 19, 'errore npt'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-21 14:31:00', 3.85, 5, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-21 14:31:00', 3.85, 5, ''),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-22 15:39:00', 4.02, 16, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-22 15:40:00', 4.02, 16, 'sessione 2'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-23 03:20:00', 3.09, 7, ''),
+            ('MLRO', 'Media (MEO)', 'Lares 2', '5988', '2026-05-23 03:02:00', 3.80, 2, 'sessione 2'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-25 08:23:00', 3.12, 10, 'Mlro no data | errore npt'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-25 12:41:00', 3.80, 7, 'Mlro no data | errore npt'),
+            ('MSLR', 'Media (MEO)', 'Lares 2', '5988', '2026-05-28 11:36:00', 4.12, 4, 'MLRO no data | meteo Sclat')
+        ]
+        with sqlite3.connect("laser_data_v2.db") as c:
+            c.cursor().executemany("INSERT INTO acquisitions VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)", tutto)
+            c.commit()
+        st.sidebar.success("✅ Fogli Caricati!")
+        st.rerun()
 
 sat_info = {
     "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
@@ -170,99 +261,4 @@ with t_dati:
                 
                 display_name = "galileo-xxx" if s == "Galileo-Bridge" else s.lower().replace(" ", "")
                 cell_s = ws.cell(row=2, column=c_idx, value=display_name)
-                cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
-                
-                ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+9)
-                orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
-                sic_label = "71xx" if s == "Galileo-Bridge" else sat_info[orb_k].get(s, "0000")
-                ws.cell(row=3, column=c_idx, value=sic_label).font = f_dt
-                ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
-                
-                cell_d_title = ws.cell(row=4, column=c_idx, value="Data")
-                cell_d_title.font = f_hd; cell_d_title.alignment = al_c; cell_d_title.fill = f_grigio
-                
-                ws.merge_cells(start_row=4, start_column=c_idx+1, end_row=4, end_column=c_idx+4)
-                cell_ms = ws.cell(row=4, column=c_idx+1, value="MSLR")
-                cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
-                
-                ws.merge_cells(start_row=4, start_column=c_idx+5, end_row=4, end_column=c_idx+9)
-                cell_ml = ws.cell(row=4, column=c_idx+5, value="MLRO")
-                cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
-                
-                for r_h in range(2, 5):
-                    for c_h in range(c_idx, c_idx+10): ws.cell(row=r_h, column=c_h).border = brd
-                
-                ws.cell(row=5, column=c_idx, value="").font = f_hd
-                ws.cell(row=5, column=c_idx).fill = f_grigio; ws.cell(row=5, column=c_idx).border = brd
-                
-                for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", ""]):
-                    cell_p1 = ws.cell(row=5, column=c_idx + 1 + p_idx, value=p_tx)
-                    cell_p1.font = f_hd; cell_p1.alignment = al_c; cell_p1.fill = f_grigio; cell_p1.border = brd
-                    
-                    cell_p2 = ws.cell(row=5, column=c_idx + 5 + p_idx, value=p_tx)
-                    cell_p2.font = f_hd; cell_p2.alignment = al_c; cell_p2.fill = f_grigio; cell_p2.border = brd
-                
-                cell_n_title = ws.cell(row=5, column=c_idx + 9, value="Note")
-                cell_n_title.font = f_hd; cell_n_title.alignment = al_c; cell_n_title.fill = f_grigio; cell_n_title.border = brd
-                
-                c_idx += 10
-            
-            r_dest = 6
-            if not df_v.empty:
-                for row in df_v.to_dict(orient="records"):
-                    is_galileo = row["Satellite"].startswith("Galileo-")
-                    if f_nm == "High" and not is_galileo and row["Satellite"] not in s_lst: continue
-                    if f_nm == "High" and is_galileo and "Galileo-Bridge" not in s_lst: continue
-                    if f_nm != "High" and row["Satellite"] not in s_lst: continue
-                    
-                    s_pos = s_lst.index("Galileo-Bridge") if is_galileo and f_nm == "High" else s_lst.index(row["Satellite"])
-                    b_col = 2 + (s_pos * 10)
-                    
-                    cell_d = ws.cell(row=r_dest, column=b_col, value=row["Data"])
-                    cell_d.font = f_dt; cell_d.fill = f_vrd; cell_d.alignment = al_c
-                    
-                    if row["T_MSLR"]:
-                        dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
-                        t_ms = f"{dt_ms_obj.hour}.{dt_ms_obj.strftime('%M')}"
-                        vals = [t_ms, row["R_MS"], row["N_MS"], row["fr2_mslr"]]
-                        for o_idx, val in enumerate(vals):
-                            cell = ws.cell(row=r_dest, column=b_col + 1 + o_idx, value=val)
-                            cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
-                    if row["T_MLRO"]:
-                        dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
-                        t_ml = f"{dt_mo_obj.hour}.{dt_mo_obj.strftime('%M')}"
-                        vals = [t_ml, row["R_MO"], row["N_MO"], row["fr2_mlro"]]
-                        for o_idx, val in enumerate(vals):
-                            cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
-                            cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
-                        
-                    cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_Accoppiate"])
-                    cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
-                    
-                    for c_b in range(2, 32):
-                        ws.cell(row=r_dest, column=c_b).border = brd
-                    r_dest += 1
-            
-            for r_empty in range(r_dest, 31):
-                for c_b in range(2, 32):
-                    ws.cell(row=r_empty, column=c_b).border = brd
-            
-            for col in range(1, 32):
-                col_letter = get_column_letter(col)
-                max_len = max(len(str(ws.cell(row_idx, column=col).value or '')) for row_idx in range(1, 31))
-                ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
-                
-        buf = io.BytesIO()
-        wb.save(buf)
-        st.write("")
-        st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
-        st.write("---")
-        
-        df_mslr_raw = df[df["sistema"] == "MSLR"]
-        st.markdown("### 🔴 Dati MSLR")
-        if not df_mslr_raw.empty: st.dataframe(df_mslr_raw[["id", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]], width="stretch", hide_index=True)
-        
-        df_mlro_raw = df[df["sistema"] == "MLRO"]
-        st.markdown("### 🔵 Dati MLRO")
-        if not df_mlro_raw.empty: st.dataframe(df_mlro_raw[["id", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]], width="stretch", hide_index=True)
-    else: st.info("Nessun dato ancora registrato.")
+                cell_s.font = f_hd;
