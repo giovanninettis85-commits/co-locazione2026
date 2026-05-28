@@ -1,21 +1,42 @@
 import streamlit as st
 import pandas as pd
-import sqlite3, io, openpyxl, os
+import sqlite3, io, openpyxl, os, base64
 from datetime import datetime, time, timedelta, timezone
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# Stringhe Base64 reali e complete integrate nel codice per la massima compatibilità cross-device
-LOGO_ASI_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAMAAAC53vKfAAAASFBMVEVHcEwAQEAAYGBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD///8wMDAQEBAgICAQEBAwMDBIn3SeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAEVJREFUeN7t1bENwDAMBEFL9t95O6gqfYgDyLuZm8EByr6ltb2mtWttbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tff8OCg8PrR8KrR8CrScVtgAAAABJRU5ErkJggg=="
-LOGO_EGEOS_B64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAFAAAABQCAMAAAC53vKfAAAASFBMVEVHcEwAQEAAYGBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD///8wMDAQEBAgICAQEBAwMDBIn3SeAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAEVJREFUeN7t1bENwDAMBEFL9t95O6gqfYgDyLuZm8EByr6ltb2mtWttbW1tbW1tbW1tbW1tbW1tbW1tbW1tbW1tff8OCg8PrR8KrR8CrScVtgAAAABJRU5ErkJggg=="
+# Puntamento rigido al percorso della tua cartella stazionale
+BASE_PATH = r"C:\Users\mlro_posta\Desktop\Programma Laser"
+logo_asi_path = os.path.join(BASE_PATH, "logo_asi.png")
+logo_egeos_path = os.path.join(BASE_PATH, "logo_egeos.png")
+
+# Algoritmo di conversione forzata per rendere visibili i file fisici su qualsiasi smartphone remoto
+def render_local_image_safely(file_path):
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "rb") as image_file:
+                encoded_string = base64.b64encode(image_file.read()).decode()
+            return f"data:image/png;base64,{encoded_string}"
+        except:
+            return None
+    return None
+
+img_asi_stream = render_local_image_safely(logo_asi_path)
+img_egeos_stream = render_local_image_safely(logo_egeos_path)
 
 col1, _, col2 = st.columns(3)
 with col1:
-    st.image(LOGO_ASI_B64, width=120)
+    if img_asi_stream: 
+        st.image(img_asi_stream, width=120)
+    else: 
+        st.markdown('<b style="color:red;">File logo_asi.png non trovato sul Desktop</b>', unsafe_allow_html=True)
 with col2:
-    st.image(LOGO_EGEOS_B64, width=130)
+    if img_egeos_stream: 
+        st.image(img_egeos_stream, width=130)
+    else: 
+        st.markdown('<b style="color:red;">File logo_egeos.png non trovato sul Desktop</b>', unsafe_allow_html=True)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
