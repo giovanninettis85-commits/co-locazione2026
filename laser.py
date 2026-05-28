@@ -7,12 +7,17 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# Puntamento rigido al percorso della tua cartella stazionale
+# CORREZIONE PERCORSO: Punta direttamente all'interno della cartella sul Desktop
 BASE_PATH = r"C:\Users\mlro_posta\Desktop\Programma Laser"
 logo_asi_path = os.path.join(BASE_PATH, "logo_asi.png")
 logo_egeos_path = os.path.join(BASE_PATH, "logo_egeos.png")
 
-# Algoritmo di conversione forzata per rendere visibili i file fisici su qualsiasi smartphone remoto
+# Se non li trova lì, prova a cercarli nella cartella corrente di esecuzione
+if not os.path.exists(logo_asi_path):
+    logo_asi_path = "logo_asi.png"
+if not os.path.exists(logo_egeos_path):
+    logo_egeos_path = "logo_egeos.png"
+
 def render_local_image_safely(file_path):
     if os.path.exists(file_path):
         try:
@@ -31,12 +36,12 @@ with col1:
     if img_asi_stream: 
         st.image(img_asi_stream, width=120)
     else: 
-        st.markdown('<b style="color:red;">File logo_asi.png non trovato sul Desktop</b>', unsafe_allow_html=True)
+        st.markdown('<b style="color:red;">logo_asi.png non trovato</b>', unsafe_allow_html=True)
 with col2:
     if img_egeos_stream: 
         st.image(img_egeos_stream, width=130)
     else: 
-        st.markdown('<b style="color:red;">File logo_egeos.png non trovato sul Desktop</b>', unsafe_allow_html=True)
+        st.markdown('<b style="color:red;">logo_egeos.png non trovato</b>', unsafe_allow_html=True)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
