@@ -1,3 +1,136 @@
+import streamlit as st
+import pandas as pd
+import sqlite3, io, openpyxl, os
+from datetime import datetime, time, timedelta, timezone
+from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
+
+col1, _, col2 = st.columns(3)
+with col1:
+    if os.path.exists("logo_asi.png"): st.image("logo_asi.png", width=120)
+with col2:
+    if os.path.exists("logo_egeos.png"): st.image("logo_egeos.png", width=130)
+
+def q(sql, p=()):
+    with sqlite3.connect("laser_data_v2.db") as c:
+        cursor = c.cursor()
+        cursor.execute(sql, p)
+        c.commit()
+        return cursor.fetchall()
+
+q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
+     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER)""")
+
+try:
+    q("ALTER TABLE acquisitions ADD COLUMN note TEXT")
+except:
+    pass
+
+sat_info = {
+    "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
+    "Media (MEO)": {"Lageos 1": "1155", "Lageos 2": "5986", "Lares 2": "5988"},
+    "Alta (HEO/GEO)": {
+        "Etalon 1": "0525", 
+        "Etalon 2": "4146",
+        "Galileo-101": "7101", 
+        "Galileo-102": "7102", 
+        "Galileo-201": "7201", 
+        "Galileo-202": "7202", 
+        "Galileo-209": "7209", 
+        "Galileo-211": "7211"
+    }
+}
+
+st.title("🛰️ Laser Ranging Data Sync")
+t_mslr, t_mlro, t_dati = st.tabs(["🔴 MSLR", "🔵 MLRO", "📊 Registro Dati"])
+
+def f_form(sys):
+    st.subheader(f"Nuovo inserimento {sys}")
+    orb = st.selectbox("Seleziona Orbita", list(sat_info.keys()), key=f"o_{sys}")
+    sat_name = st.selectbox("Seleziona Satellite", list(sat_info[orb].keys()), key=f"s_{sys}")
+    sic = sat_info[orb][sat_name]
+    dt = datetime.now(timezone.utc)
+    c1, c2 = st.columns(2)
+    with c1: d = st.date_input("Data (UTC)", value=dt.date(), key=f"d_{sys}")
+    with c2: t = st.time_input("Ora (UTC)", value=dt.time().replace(second=0, microsecond=0), step=60, key=f"t_{sys}")
+    rms = st.number_input("RMS (mm)", min_value=0.0, value=1.0, step=0.1, format="%.1f", key=f"r_{sys}")
+    np = st.number_input("Normal Point", min_value=1, value=15, step=1, key=f"n_{sys}")
+    
+    if f"input_note_{sys}" not in st.session_state:
+        st.session_state[f"input_note_{sys}"] = ""
+        
+    nota = st.text_input("Note", value=st.session_state[f"input_note_{sys}"], key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni qui...")
+    
+    if f"saved_{sys}" not in st.session_state:
+        st.session_state[f"saved_{sys}"] = False
+        
+    if st.button(f"💾 Salva in {sys}", key=f"b_{sys}", type="primary", width="stretch"):
+        dt_c = datetime.combine(d, t).strftime("%Y-%m-%d %H:%M:%S")
+        q("INSERT INTO acquisitions VALUES (NULL,?,?,?,?,?,?,?,?)", (sys, orb, sat_name, sic, dt_c, round(rms, 1), np, nota))
+        st.session_state[f"saved_{sys}"] = True
+        st.session_state[f"input_note_{sys}"] = ""
+        st.rerun()
+        
+    if st.session_state[f"saved_{sys}"]:
+        st.success("Salvato")
+        st.session_state[f"saved_{sys}"] = False
+
+with t_mslr: f_form("MSLR")
+with t_mlro: f_form("MLRO")
+with t_dati:
+    st.subheader("📋 Gestione Registro ed Obiettivi")
+    raw = q("SELECT id, sistema, orbita, satellite, sic_code, data_ora, rms, normal_point, note FROM acquisitions ORDER BY id DESC")
+    df = pd.DataFrame(raw, columns=["id", "sistema", "orbita", "satellite", "sic_code", "data_ora", "rms", "normal_point", "note"]) if raw else pd.DataFrame()
+    valid, c_leo, c_meo, c_heo = [], 0, 0, 0
+    
+    if not df.empty:
+        for _, r in df.iterrows():
+            dt_obj = datetime.strptime(r["data_ora"], "%Y-%m-%d %H:%M:%S")
+            
+            fr2_calc_mslr = f"9991_{r['satellite'].lower().replace(' ','')}_crd_{dt_obj.strftime('%Y%m%d_%H%M')}_00.fr2"
+            fr2_calc_mlro = f"7941_{r['satellite'].lower().replace(' ','')}_crd_{dt_obj.strftime('%Y%m%d_%H%M')}_00.fr2"
+            
+            item = {
+                "Data": dt_obj.strftime("%Y-%m-%d"),
+                "fr2": fr2_calc_mlro if r["sistema"] == "MLRO" else "",
+                "fr2_ms_old": fr2_calc_mslr if r["sistema"] == "MSLR" else "",
+                "Satellite": r["satellite"],
+                "SIC": r["sic_code"],
+                "Orbita": r["orbita"],
+                "T_MSLR": r["data_ora"] if r["sistema"] == "MSLR" else "",
+                "R_MS": round(r["rms"], 1) if r["sistema"] == "MSLR" else "",
+                "N_MS": r["normal_point"] if r["sistema"] == "MSLR" else "",
+                "T_MLRO": r["data_ora"] if r["sistema"] == "MLRO" else "",
+                "R_MO": round(r["rms"], 1) if r["sistema"] == "MLRO" else "",
+                "N_MO": r["normal_point"] if r["sistema"] == "MLRO" else "",
+                "Note_Accoppiate": r["note"] if r["note"] else ""
+            }
+            valid.append(item)
+            
+        df_v = pd.DataFrame(valid)
+        c_leo = len(df[df["orbita"] == "Bassa (LEO)"])
+        c_meo = len(df[df["orbita"] == "Media (MEO)"])
+        c_heo = len(df[df["orbita"] == "Alta (HEO/GEO)"])
+    else:
+        df_v = pd.DataFrame()
+    
+    cx1, cx2, cx3 = st.columns(3)
+    with cx1: st.markdown(f"🟢 **Low**: {c_leo}/20"); st.progress(min(c_leo/20, 1.0))
+    with cx2: st.markdown(f"🟡 **Meo**: {c_meo}/20"); st.progress(min(c_meo/20, 1.0))
+    with cx3: st.markdown(f"🔴 **High**: {c_heo}/20"); st.progress(min(c_heo/20, 1.0))
+    st.write("---")
+    
+    if not df.empty:
+        st.markdown("### 🌟 Tabella Storica Completa")
+        st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
+        
+        with st.expander("🗑️ Elimina record"):
+            opt = {r["id"]: f"ID {r['id']} - {r['satellite']} ({r['sistema']}) del {r['data_ora']}" for _, r in df.iterrows()}
+            sel = st.selectbox("Seleziona riga:", list(opt.keys()), format_func=lambda x: opt[x])
+            if st.button("🚨 Nel Registro Elimina Riga", width="stretch"):
+                q("DELETE FROM acquisitions WHERE id = ?", (sel,)); st.rerun()
         buf = io.BytesIO()
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
