@@ -9,9 +9,10 @@ st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
 col1, _, col2 = st.columns(3)
 with col1:
-    if os.path.exists("logo_asi.png"): st.image("logo_asi.png", width=120)
+    # RIPRISTINO LOGHI AZIENDALI: Caricamento diretto sicuro tramite link web statico per vederli sempre
+    st.image("https://asi.it", width=120)
 with col2:
-    if os.path.exists("logo_egeos.png"): st.image("logo_egeos.png", width=130)
+    st.image("https://e-geos.it", width=130)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
@@ -142,7 +143,6 @@ with t_dati:
     if not df.empty:
         st.markdown("### 🌟 Tabella Sincronizzata (Co-locazione)")
         if not df_v.empty:
-            # CORREZIONE: Rinominate le colonne a schermo in modo chiaro con fr2_mslr e fr2_mlro per vederle entrambe
             st.dataframe(df_v[["Data", "fr2_mslr", "fr2_mlro", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
         else:
             st.warning("⚠️ Nessun passaggio accoppiato entro i 20 minuti.")
@@ -233,7 +233,6 @@ with t_dati:
                         t_ml = f"{dt_mo_obj.hour}.{dt_mo_obj.strftime('%M')}"
                         vals = [t_ml, row["R_MO"], row["N_MO"], row["fr2_mlro"]]
                         for o_idx, val in enumerate(vals):
-                            # CORREZIONE RIGIDA: Indirizzato correttamente il blocco di scrittura per evitare sovrascritture dei file
                             cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                             cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
@@ -253,6 +252,7 @@ with t_dati:
                 max_len = max(len(str(ws.cell(row_idx, column=col).value or '')) for row_idx in range(1, 31))
                 ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
                 
+        buf = io.BytesIO()
         wb.save(buf)
         st.write("")
         st.download_button(label="📥 Scarica Registro Strutturato (.xlsx)", data=buf.getvalue(), file_name=f"satelliti_collocazione_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M')}.xlsx", width="stretch")
