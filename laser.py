@@ -1,17 +1,16 @@
 import streamlit as st
 import pandas as pd
-import sqlite3, io, openpyxl, os, base64
+import sqlite3, io, openpyxl, os
 from datetime import datetime, time, timedelta, timezone
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-col1, _, col2 = st.columns(3)
-with col1:
-    st.markdown('<div style="background-color:#002F6C; color:white; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-left: 5px solid #00A699;">🛰️ ASI<br><span style="font-size:10px; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">Agenzia Spaziale Italiana</span></div>', unsafe_allow_html=True)
-with col2:
-    st.markdown('<div style="background-color:#2F2F2F; color:#92D050; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-right: 5px solid #92D050;">📡 e-GEOS<br><span style="font-size:10px; color:white; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">AN ASI / TELESPAZIO COMPANY</span></div>', unsafe_allow_html=True)
+# COMANDO RIGIDO DI SVUOTAMENTO: Pulisce la tabella ad ogni riavvio dell'applicazione
+with sqlite3.connect("laser_data_v2.db") as c:
+    c.cursor().execute("DROP TABLE IF EXISTS acquisitions")
+    c.commit()
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
@@ -21,12 +20,13 @@ def q(sql, p=()):
         return cursor.fetchall()
 
 q("""CREATE TABLE IF NOT EXISTS acquisitions (id INTEGER PRIMARY KEY AUTOINCREMENT,
-     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER)""")
+     sistema TEXT, orbita TEXT, satellite TEXT, sic_code TEXT, data_ora TEXT, rms REAL, normal_point INTEGER, note TEXT)""")
 
-try:
-    q("ALTER TABLE acquisitions ADD COLUMN note TEXT")
-except:
-    pass
+col1, _, col2 = st.columns(3)
+with col1:
+    st.markdown('<div style="background-color:#002F6C; color:white; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-left: 5px solid #00A699;">🛰️ ASI<br><span style="font-size:10px; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">Agenzia Spaziale Italiana</span></div>', unsafe_allow_html=True)
+with col2:
+    st.markdown('<div style="background-color:#2F2F2F; color:#92D050; padding:12px; border-radius:6px; text-align:center; font-family:Arial, sans-serif; font-weight:bold; font-size:18px; border-right: 5px solid #92D050;">📡 e-GEOS<br><span style="font-size:10px; color:white; font-weight:normal; opacity:0.85; display:block; margin-top:2px;">AN ASI / TELESPAZIO COMPANY</span></div>', unsafe_allow_html=True)
 
 sat_info = {
     "Bassa (LEO)": {"Starlette": "1134", "Stella": "0643", "Lares": "5987"},
@@ -60,7 +60,7 @@ def f_form(sys):
     if f"input_note_{sys}" not in st.session_state:
         st.session_state[f"input_note_{sys}"] = ""
         
-    nota = st.text_input("Note", value=st.session_state[f"input_note_{sys}"], key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni hier...")
+    nota = st.text_input("Note", value=st.session_state[f"input_note_{sys}"], key=f"nt_{sys}", placeholder="Inserisci eventuali annotazioni qui...")
     
     if f"saved_{sys}" not in st.session_state:
         st.session_state[f"saved_{sys}"] = False
@@ -161,48 +161,33 @@ with t_dati:
         for f_nm, s_lst in f_cfg.items():
             ws = wb.create_sheet(title=f_nm)
             ws.sheet_view.showGridLines = True
-            ws.append([])
+            
+            # ALLINEAMENTO RIGA 1: Le colonne dei blocchi partono direttamente dalla prima riga dell'Excel
             c_idx = 2
             for s in s_lst:
-                ws.merge_cells(start_row=2, start_column=c_idx, end_row=2, end_column=c_idx+9)
-                display_name = "galileo-xxx" if s == "Galileo-Bridge" else s.lower().replace(" ", "")
-                cell_s = ws.cell(row=2, column=c_idx, value=display_name)
-                cell_s.font = f_hd; cell_s.alignment = al_c; cell_s.fill = f_grigio
-                
-                ws.merge_cells(start_row=3, start_column=c_idx, end_row=3, end_column=c_idx+9)
-                orb_k = "Bassa (LEO)" if f_nm=="Low" else ("Media (MEO)" if f_nm=="Meo" else "Alta (HEO/GEO)")
-                sic_label = "71xx" if s == "Galileo-Bridge" else sat_info[orb_k].get(s, "0000")
-                ws.cell(row=3, column=c_idx, value=sic_label).font = f_dt
-                ws.cell(row=3, column=c_idx).alignment = al_c; ws.cell(row=3, column=c_idx).fill = f_grigio
-                
-                cell_d_title = ws.cell(row=4, column=c_idx, value="Data")
-                cell_d_title.font = f_hd; cell_d_title.alignment = al_c; cell_d_title.fill = f_grigio
-                
-                ws.merge_cells(start_row=4, start_column=c_idx+1, end_row=4, end_column=c_idx+4)
-                cell_ms = ws.cell(row=4, column=c_idx+1, value="MSLR")
+                ws.merge_cells(start_row=1, start_column=c_idx, end_row=1, end_column=c_idx+3)
+                cell_ms = ws.cell(row=1, column=c_idx, value="MSLR")
                 cell_ms.font = f_hd; cell_ms.alignment = al_c; cell_ms.fill = f_grigio
                 
-                ws.merge_cells(start_row=4, start_column=c_idx+5, end_row=4, end_column=c_idx+9)
-                cell_ml = ws.cell(row=4, column=c_idx+5, value="MLRO")
+                ws.merge_cells(start_row=1, start_column=c_idx+4, end_row=1, end_column=c_idx+8)
+                cell_ml = ws.cell(row=1, column=c_idx+4, value="MLRO")
                 cell_ml.font = f_hd; cell_ml.alignment = al_c; cell_ml.fill = f_grigio
                 
-                for r_h in range(2, 5):
-                    for c_h in range(c_idx, c_idx+10): ws.cell(row=r_h, column=c_h).border = brd
+                for r_h in range(1, 2):
+                    for c_h in range(c_idx, c_idx+9): ws.cell(row=r_h, column=c_h).border = brd
                 
-                ws.cell(row=5, column=c_idx, value="").font = f_hd
-                ws.cell(row=5, column=c_idx).fill = f_grigio; ws.cell(row=5, column=c_idx).border = brd
-                
-                for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", ""]):
-                    cell_p1 = ws.cell(row=5, column=c_idx + 1 + p_idx, value=p_tx)
+                for p_idx, p_tx in enumerate(["Time start", "Rms", "NP", "File Name"]):
+                    cell_p1 = ws.cell(row=2, column=c_idx + p_idx, value=p_tx)
                     cell_p1.font = f_hd; cell_p1.alignment = al_c; cell_p1.fill = f_grigio; cell_p1.border = brd
-                    cell_p2 = ws.cell(row=5, column=c_idx + 5 + p_idx, value=p_tx)
+                    
+                    cell_p2 = ws.cell(row=2, column=c_idx + 4 + p_idx, value=p_tx)
                     cell_p2.font = f_hd; cell_p2.alignment = al_c; cell_p2.fill = f_grigio; cell_p2.border = brd
                 
-                cell_n_title = ws.cell(row=5, column=c_idx + 9, value="Note")
+                cell_n_title = ws.cell(row=2, column=c_idx + 8, value="Note")
                 cell_n_title.font = f_hd; cell_n_title.alignment = al_c; cell_n_title.fill = f_grigio; cell_n_title.border = brd
-                c_idx += 10
+                c_idx += 9
             
-            r_dest = 6
+            r_dest = 3
             if not df_v.empty:
                 for row in df_v.to_dict(orient="records"):
                     is_galileo = row["Satellite"].startswith("Galileo-")
@@ -211,35 +196,35 @@ with t_dati:
                     if f_nm != "High" and row["Satellite"] not in s_lst: continue
                     
                     s_pos = s_lst.index("Galileo-Bridge") if is_galileo and f_nm == "High" else s_lst.index(row["Satellite"])
-                    b_col = 2 + (s_pos * 10)
+                    b_col = 2 + (s_pos * 9)
                     
-                    cell_d = ws.cell(row=r_dest, column=b_col, value=row["Data"])
-                    cell_d.font = f_dt; cell_d.fill = f_vrd; cell_d.alignment = al_c
+                    ws.cell(row=r_dest, column=1, value=row["Data"]).font = f_dt
+                    ws.cell(row=r_dest, column=1).alignment = al_c
                     
                     if row["T_MSLR"]:
                         dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
                         t_ms = f"{dt_ms_obj.hour}.{dt_ms_obj.strftime('%M')}"
                         vals = [t_ms, row["R_MS"], row["N_MS"], row["fr2_mslr"]]
                         for o_idx, val in enumerate(vals):
-                            cell = ws.cell(row=r_dest, column=b_col + 1 + o_idx, value=val)
+                            cell = ws.cell(row=r_dest, column=b_col + o_idx, value=val)
                             cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                     if row["T_MLRO"]:
                         dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
                         t_ml = f"{dt_mo_obj.hour}.{dt_mo_obj.strftime('%M')}"
                         vals = [t_ml, row["R_MO"], row["N_MO"], row["fr2_mlro"]]
                         for o_idx, val in enumerate(vals):
-                            cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
+                            cell = ws.cell(row=r_dest, column=b_col + 4 + o_idx, value=val)
                             cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
-                    cell_nt = ws.cell(row=r_dest, column=b_col + 9, value=row["Note_Accoppiate"])
+                    cell_nt = ws.cell(row=r_dest, column=b_col + 8, value=row["Note_Accoppiate"])
                     cell_nt.font = f_dt; cell_nt.fill = f_vrd; cell_nt.alignment = al_c
-                    for c_b in range(2, 32): ws.cell(row=r_dest, column=c_b).border = brd
+                    for c_b in range(1, 29): ws.cell(row=r_dest, column=c_b).border = brd
                     r_dest += 1
             
             for r_empty in range(r_dest, 31):
-                for c_b in range(2, 32): ws.cell(row=r_empty, column=c_b).border = brd
+                for c_b in range(1, 29): ws.cell(row=r_empty, column=c_b).border = brd
             
-            for col in range(1, 32):
+            for col in range(1, 29):
                 col_letter = get_column_letter(col)
                 max_len = max(len(str(ws.cell(row_idx, column=col).value or '')) for row_idx in range(1, 31))
                 ws.column_dimensions[col_letter].width = max(max_len + 2, 11)
