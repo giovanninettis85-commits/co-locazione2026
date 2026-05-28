@@ -94,7 +94,6 @@ with t_dati:
                 if r_mo["id"] in u_mlro or r_ms["satellite"] != r_mo["satellite"]: continue
                 dt_mo = datetime.strptime(r_mo["data_ora"], "%Y-%m-%d %H:%M:%S")
                 
-                # APPLICAZIONE MODIFICA: Tolleranza oraria alzata a 20 minuti per la co-locazione stazionale
                 if abs(dt_ms - dt_mo) <= timedelta(minutes=20):
                     u_mlro.add(r_mo["id"])
                     
@@ -112,8 +111,8 @@ with t_dati:
                     
                     valid.append({
                         "Data": dt_ms.strftime("%Y-%m-%d"),
-                        "fr2": fr2_name, 
-                        "fr2_ms_old": fr2_ms_old,
+                        "fr2_mlro": fr2_name, 
+                        "fr2_mslr": fr2_ms_old,
                         "Satellite": r_ms["satellite"], 
                         "SIC": r_ms["sic_code"], 
                         "Orbita": r_ms["orbita"], 
@@ -143,7 +142,8 @@ with t_dati:
     if not df.empty:
         st.markdown("### 🌟 Tabella Sincronizzata (Co-locazione)")
         if not df_v.empty:
-            st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
+            # CORREZIONE: Rinominate le colonne a schermo in modo chiaro con fr2_mslr e fr2_mlro per vederle entrambe
+            st.dataframe(df_v[["Data", "fr2_mslr", "fr2_mlro", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
         else:
             st.warning("⚠️ Nessun passaggio accoppiato entro i 20 minuti.")
             
@@ -224,15 +224,16 @@ with t_dati:
                     if row["T_MSLR"]:
                         dt_ms_obj = datetime.strptime(row["T_MSLR"], "%Y-%m-%d %H:%M:%S")
                         t_ms = f"{dt_ms_obj.hour}.{dt_ms_obj.strftime('%M')}"
-                        vals = [t_ms, row["R_MS"], row["N_MS"], row["fr2_ms_old"]]
+                        vals = [t_ms, row["R_MS"], row["N_MS"], row["fr2_mslr"]]
                         for o_idx, val in enumerate(vals):
                             cell = ws.cell(row=r_dest, column=b_col + 1 + o_idx, value=val)
                             cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                     if row["T_MLRO"]:
                         dt_mo_obj = datetime.strptime(row["T_MLRO"], "%Y-%m-%d %H:%M:%S")
                         t_ml = f"{dt_mo_obj.hour}.{dt_mo_obj.strftime('%M')}"
-                        vals = [t_ml, row["R_MO"], row["N_MO"], row["fr2"]]
+                        vals = [t_ml, row["R_MO"], row["N_MO"], row["fr2_mlro"]]
                         for o_idx, val in enumerate(vals):
+                            # CORREZIONE RIGIDA: Indirizzato correttamente il blocco di scrittura per evitare sovrascritture dei file
                             cell = ws.cell(row=r_dest, column=b_col + 5 + o_idx, value=val)
                             cell.font = f_dt; cell.fill = f_vrd; cell.alignment = al_c
                         
