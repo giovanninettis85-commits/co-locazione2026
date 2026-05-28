@@ -86,33 +86,51 @@ with t_dati:
     valid, c_leo, c_meo, c_heo = [], 0, 0, 0
     
     if not df.empty:
-        for _, r in df.iterrows():
-            dt_obj = datetime.strptime(r["data_ora"], "%Y-%m-%d %H:%M:%S")
-            
-            fr2_calc_mslr = f"9991_{r['satellite'].lower().replace(' ','')}_crd_{dt_obj.strftime('%Y%m%d_%H%M')}_00.fr2"
-            fr2_calc_mlro = f"7941_{r['satellite'].lower().replace(' ','')}_crd_{dt_obj.strftime('%Y%m%d_%H%M')}_00.fr2"
-            
-            item = {
-                "Data": dt_obj.strftime("%Y-%m-%d"),
-                "fr2": fr2_calc_mlro if r["sistema"] == "MLRO" else "",
-                "fr2_ms_old": fr2_calc_mslr if r["sistema"] == "MSLR" else "",
-                "Satellite": r["satellite"],
-                "SIC": r["sic_code"],
-                "Orbita": r["orbita"],
-                "T_MSLR": r["data_ora"] if r["sistema"] == "MSLR" else "",
-                "R_MS": round(r["rms"], 1) if r["sistema"] == "MSLR" else "",
-                "N_MS": r["normal_point"] if r["sistema"] == "MSLR" else "",
-                "T_MLRO": r["data_ora"] if r["sistema"] == "MLRO" else "",
-                "R_MO": round(r["rms"], 1) if r["sistema"] == "MLRO" else "",
-                "N_MO": r["normal_point"] if r["sistema"] == "MLRO" else "",
-                "Note_Accoppiate": r["note"] if r["note"] else ""
-            }
-            valid.append(item)
-            
-        df_v = pd.DataFrame(valid)
-        c_leo = len(df[df["orbita"] == "Bassa (LEO)"])
-        c_meo = len(df[df["orbita"] == "Media (MEO)"])
-        c_heo = len(df[df["orbita"] == "Alta (HEO/GEO)"])
+        mslr, mlro = df[df["sistema"] == "MSLR"], df[df["sistema"] == "MLRO"]
+        u_mlro = set()
+        for _, r_ms in mslr.iterrows():
+            dt_ms = datetime.strptime(r_ms["data_ora"], "%Y-%m-%d %H:%M:%S")
+            for _, r_mo in mlro.iterrows():
+                if r_mo["id"] in u_mlro or r_ms["satellite"] != r_mo["satellite"]: continue
+                dt_mo = datetime.strptime(r_mo["data_ora"], "%Y-%m-%d %H:%M:%S")
+                
+                # APPLICAZIONE MODIFICA: Tolleranza oraria alzata a 20 minuti per la co-locazione stazionale
+                if abs(dt_ms - dt_mo) <= timedelta(minutes=20):
+                    u_mlro.add(r_mo["id"])
+                    
+                    fr2_name = f"7941_{r_mo['satellite'].lower().replace(' ','')}_crd_{dt_mo.strftime('%Y%m%d_%H%M')}_00.fr2"
+                    fr2_ms_old = f"9991_{r_ms['satellite'].lower().replace(' ','')}_crd_{dt_ms.strftime('%Y%m%d_%H%M')}_00.fr2"
+                    
+                    n_ms = r_ms["note"] if r_ms["note"] else ""
+                    n_mo = r_mo["note"] if r_mo["note"] else ""
+                    if n_ms and n_mo:
+                        nota_unita = f"{n_ms} | {n_mo}"
+                    elif n_ms:
+                        nota_unita = n_ms
+                    else:
+                        nota_unita = n_mo
+                    
+                    valid.append({
+                        "Data": dt_ms.strftime("%Y-%m-%d"),
+                        "fr2": fr2_name, 
+                        "fr2_ms_old": fr2_ms_old,
+                        "Satellite": r_ms["satellite"], 
+                        "SIC": r_ms["sic_code"], 
+                        "Orbita": r_ms["orbita"], 
+                        "T_MSLR": r_ms["data_ora"], 
+                        "R_MS": round(r_ms["rms"], 1), 
+                        "N_MS": r_ms["normal_point"], 
+                        "T_MLRO": r_mo["data_ora"], 
+                        "R_MO": round(r_mo["rms"], 1), 
+                        "N_MO": r_mo["normal_point"],
+                        "Note_Accoppiate": nota_unita
+                    })
+                    break
+                    
+        df_v = pd.DataFrame(valid) if valid else pd.DataFrame()
+        c_leo = len(df_v[df_v["Orbita"] == "Bassa (LEO)"]) if not df_v.empty else 0
+        c_meo = len(df_v[df_v["Orbita"] == "Media (MEO)"]) if not df_v.empty else 0
+        c_heo = len(df_v[df_v["Orbita"] == "Alta (HEO/GEO)"]) if not df_v.empty else 0
     else:
         df_v = pd.DataFrame()
     
@@ -123,9 +141,12 @@ with t_dati:
     st.write("---")
     
     if not df.empty:
-        st.markdown("### 🌟 Tabella Storica Completa")
-        st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
-        
+        st.markdown("### 🌟 Tabella Sincronizzata (Co-locazione)")
+        if not df_v.empty:
+            st.dataframe(df_v[["Data", "fr2", "Satellite", "SIC", "Orbita", "T_MSLR", "R_MS", "N_MS", "T_MLRO", "R_MO", "N_MO", "Note_Accoppiate"]], width="stretch", hide_index=True)
+        else:
+            st.warning("⚠️ Nessun passaggio accoppiato entro i 20 minuti.")
+            
         with st.expander("🗑️ Elimina record"):
             opt = {r["id"]: f"ID {r['id']} - {r['satellite']} ({r['sistema']}) del {r['data_ora']}" for _, r in df.iterrows()}
             sel = st.selectbox("Seleziona riga:", list(opt.keys()), format_func=lambda x: opt[x])
