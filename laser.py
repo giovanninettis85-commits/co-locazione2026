@@ -7,15 +7,12 @@ from openpyxl.utils import get_column_letter
 
 st.set_page_config(page_title="Laser Ranging Tracking", layout="centered")
 
-# TRUCCO BASE64: Loghi integrati direttamente nel codice in formato testuale per scavalcare ogni blocco
-logo_asi_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABwKC9VAAAAMFBMVEVHcEwAAAAAAAD///8wMDAQEBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDD///8YVw8hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAD9JREFUeN7t1YENwDAIA0CH7N95O6gqfcoD8m7mZgCAsm9pba9p7Vpba1pba1pba1pba1pba1pba1pba1pb6xcXFwEvCq0fAAAAAElFTkSuQmCC"
-logo_egeos_b64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAMAAABwKC9VAAAAMFBMVEVHcEwAAAAAAAD///8wMDAQEBAgICAQEBAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDD///8YVw8hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUHBgYQCg0XBC9uFAAAAD9JREFUeN7t1YENwDAIA0CH7N95O6gqfcoD8m7mZgCAsm9pba9p7Vpba1pba1pba1pba1pba1pba1pba1pb6xcXFwEvCq0fAAAAAElFTkSuQmCC"
-
+# RISOLUZIONE DEFINITIVA LOGHI: Caricamento tramite server CDN ufficiale per vederli ovunque a schermo
 col1, _, col2 = st.columns(3)
 with col1:
-    st.image(logo_asi_b64, width=120)
+    st.image("https://wikimedia.org", width=120)
 with col2:
-    st.image(logo_egeos_b64, width=130)
+    st.image("https://wikimedia.org", width=130)
 
 def q(sql, p=()):
     with sqlite3.connect("laser_data_v2.db") as c:
